@@ -48,7 +48,7 @@ public class Lexer {
     }
 
     private List<Token> parseLine(String line) throws IOException, SyntaxErrorException {
-        return parseLine(line,new ArrayList<>());
+        return parseLine(line, new ArrayList<>());
     }
 
     private List<Token> parseLine(String line, List<Token> tokenList) throws IOException, SyntaxErrorException {
