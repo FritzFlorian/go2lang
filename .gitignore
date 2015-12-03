@@ -1,0 +1,12 @@
+#workspace files, add other IDEs when needed
+.idea/
+gotwo.iml
+
+#gradle local files
+.gradle/
+
+#mac files...
+.DS_Store
+
+#build results
+build/
