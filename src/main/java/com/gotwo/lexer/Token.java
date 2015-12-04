@@ -9,7 +9,7 @@ package com.gotwo.lexer;
  * e.g. an INTEGER may contain its numeric value.
  */
 public abstract class Token {
-    public enum TYPE {NEWLINE, OPERATOR, ASSIGMENT, INTEGER, IDENTIFIER, KEYWORD}
+    public enum TYPE {NEWLINE, OPERATOR, ASSIGNMENT, INTEGER, IDENTIFIER, KEYWORD}
     protected TYPE type;
 
     public Token(TYPE type) {

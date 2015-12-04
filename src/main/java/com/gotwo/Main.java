@@ -1,7 +1,7 @@
 package com.gotwo;
 
 import com.gotwo.lexer.Lexer;
-import com.gotwo.lexer.SyntaxErrorException;
+import com.gotwo.error.LexerException;
 import com.gotwo.lexer.Token;
 
 import java.io.*;
@@ -30,7 +30,7 @@ public class Main {
             }
         } catch (IOException e) {
             e.printStackTrace();
-        } catch (SyntaxErrorException e) {
+        } catch (LexerException e) {
             System.err.println("Syntax Error: " + e.getMessage());
         }
     }

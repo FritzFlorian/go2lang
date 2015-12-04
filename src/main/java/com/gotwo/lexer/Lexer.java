@@ -1,10 +1,13 @@
 package com.gotwo.lexer;
 
+import com.gotwo.error.LexerException;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PushbackReader;
 import java.io.StringReader;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -26,8 +29,8 @@ public class Lexer {
      *
      * @return A list of the tokens in the given input.
      */
-    public List<Token> lexAll() throws IOException, SyntaxErrorException {
-        List<Token> tokenList = new ArrayList<>();
+    public List<Token> lexAll() throws IOException, LexerException {
+        List<Token> tokenList = new LinkedList<>();
 
         String line;
         int lineNr = 0;
@@ -40,18 +43,18 @@ public class Lexer {
                 for(String l : lines) {
                     tokenList = parseLine(l, tokenList);
                 }
-            } catch (SyntaxErrorException e ) {
-                throw new SyntaxErrorException(e.getMessage() + " in line " + lineNr);
+            } catch (LexerException e ) {
+                throw new LexerException(e.getMessage() + " in line " + lineNr);
             }
         }
         return  tokenList;
     }
 
-    private List<Token> parseLine(String line) throws IOException, SyntaxErrorException {
+    private List<Token> parseLine(String line) throws IOException, LexerException {
         return parseLine(line, new ArrayList<>());
     }
 
-    private List<Token> parseLine(String line, List<Token> tokenList) throws IOException, SyntaxErrorException {
+    private List<Token> parseLine(String line, List<Token> tokenList) throws IOException, LexerException {
         if(line.length() < 1) {
             return tokenList;
         }
@@ -119,7 +122,7 @@ public class Lexer {
                     case ' ':
                         break;
                     default:
-                        throw new SyntaxErrorException("Illegal Character '" + c + "'");
+                        throw new LexerException("Illegal Character '" + c + "'");
                 }
             }
         }
@@ -128,10 +131,10 @@ public class Lexer {
         return tokenList;
     }
 
-    private Token matchEqul(PushbackReader reader) throws IOException, SyntaxErrorException {
+    private Token matchEqul(PushbackReader reader) throws IOException, LexerException {
         int i = reader.read();
         if(i == -1) {
-            throw SyntaxErrorException.newEndOfLineException("==");
+            throw LexerException.newEndOfLineException("==");
         }
 
         char c = (char)i;
@@ -145,7 +148,7 @@ public class Lexer {
         }
     }
 
-    private Token mathExclamation(PushbackReader reader) throws IOException, SyntaxErrorException {
+    private Token mathExclamation(PushbackReader reader) throws IOException, LexerException {
         int i = reader.read();
 
         char c = (char) i;
@@ -158,7 +161,7 @@ public class Lexer {
         }
     }
 
-    private Token mathGreater(PushbackReader reader) throws IOException, SyntaxErrorException {
+    private Token mathGreater(PushbackReader reader) throws IOException, LexerException {
         int i = reader.read();
 
         char c = (char) i;
@@ -171,7 +174,7 @@ public class Lexer {
         }
     }
 
-    private Token mathLess(PushbackReader reader) throws IOException, SyntaxErrorException {
+    private Token mathLess(PushbackReader reader) throws IOException, LexerException {
         int i = reader.read();
 
         char c = (char) i;

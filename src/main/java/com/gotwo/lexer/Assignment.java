@@ -7,7 +7,7 @@ package com.gotwo.lexer;
  */
 public class Assignment extends Token {
     public Assignment() {
-        super(TYPE.ASSIGMENT);
+        super(TYPE.ASSIGNMENT);
     }
 
     @Override
