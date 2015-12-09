@@ -121,6 +121,12 @@ public class Lexer {
                         break;
                     case ' ':
                         break;
+                    case '(':
+                        tokenList.add(new Bracket(Bracket.BRACKET.OPEN));
+                        break;
+                    case ')':
+                        tokenList.add(new Bracket(Bracket.BRACKET.CLOSE));
+                        break;
                     default:
                         throw new LexerException("Illegal Character '" + c + "'");
                 }

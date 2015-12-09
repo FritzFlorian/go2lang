@@ -8,8 +8,8 @@ package com.gotwo.lexer;
  * Tokens may carry additional information,
  * e.g. an INTEGER may contain its numeric value.
  */
-public abstract class Token {
-    public enum TYPE {NEWLINE, OPERATOR, ASSIGNMENT, INTEGER, IDENTIFIER, KEYWORD}
+public class Token {
+    public enum TYPE {NEWLINE, OPERATOR, ASSIGNMENT, INTEGER, IDENTIFIER, KEYWORD, BRACKET}
     protected TYPE type;
 
     public Token(TYPE type) {
@@ -22,7 +22,7 @@ public abstract class Token {
 
     @Override
     public String toString() {
-        return getClass().getSimpleName().toLowerCase();
+        return getClass().getSimpleName().toLowerCase() + " " + type;
     }
 
     @Override
