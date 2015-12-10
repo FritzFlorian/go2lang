@@ -46,6 +46,10 @@ public class ScopeNode extends Node {
         childNodes.add(newChild);
     }
 
+    public List<Node> getChildNodes() {
+        return childNodes;
+    }
+
     /**
      * For now we do not care too much about the performance.
      * Simply get it implemented for now.
@@ -64,5 +68,9 @@ public class ScopeNode extends Node {
         }
 
         return parentScope.getIntegerDeclaration(name);
+    }
+
+    public IntegerDeclaration getLocalIntegerDeclaration(String name) {
+        return integerDeclarations.get(name);
     }
 }

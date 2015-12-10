@@ -1,12 +1,10 @@
 package com.gotwo;
 
-import com.gotwo.error.IllegalTokenException;
-import com.gotwo.error.RequireTokenException;
-import com.gotwo.error.UndeclearedIdentifier;
+import com.gotwo.error.*;
 import com.gotwo.lexer.Lexer;
-import com.gotwo.error.LexerException;
 import com.gotwo.lexer.Token;
 import com.gotwo.parser.Parser;
+import com.gotwo.parser.ParsingResult;
 import com.gotwo.parser.ScopeNode;
 
 import java.io.*;
@@ -18,7 +16,7 @@ import java.util.List;
 public class Main {
 
     public static void main(String[] args) {
-        String str = "int x = 531\nint y = 0\nx = (y + 4) * y\nscope\nint x = 4\ny = 4\nend";
+        String str = "int x = 531\nint y = 0\nx = (y + 4) * y\nlabel start\nscope\nint x = 4\ny = 4\nend\nrun to start";
 
         // convert String into InputStream
         InputStream is = new ByteArrayInputStream(str.getBytes());
@@ -35,9 +33,9 @@ public class Main {
             }
 
             Parser parser = new Parser(tokenList);
-            ScopeNode rootScope;
-            rootScope = parser.parseTokens();
-            System.out.print(rootScope);
+            ParsingResult res;
+            res = parser.parseTokens();
+            System.out.print(res);
         } catch (IOException e) {
             e.printStackTrace();
         } catch (LexerException e) {
@@ -48,6 +46,8 @@ public class Main {
             e.printStackTrace();
         } catch (UndeclearedIdentifier undeclearedIdentifier) {
             undeclearedIdentifier.printStackTrace();
+        } catch (DuplicatedIdentifier duplicatedIdentifier) {
+            duplicatedIdentifier.printStackTrace();
         }
 
 

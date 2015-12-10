@@ -137,10 +137,10 @@ public class Lexer {
         return tokenList;
     }
 
-    private Token matchEqul(PushbackReader reader) throws IOException, LexerException {
+    private Token matchEqul(PushbackReader reader) throws IOException {
         int i = reader.read();
         if(i == -1) {
-            throw LexerException.newEndOfLineException("==");
+            return new Assignment();
         }
 
         char c = (char)i;

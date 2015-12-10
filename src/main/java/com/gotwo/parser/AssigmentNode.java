@@ -12,7 +12,7 @@ public class AssigmentNode extends Node {
     private ExpressionNode expressionNode;
 
     public AssigmentNode(IntegerDeclaration integerDeclaration, ExpressionNode expressionNode) {
-        super(TYPE.ASSIGMENT);
+        super(TYPE.ASSIGNMENT);
         this.integerDeclaration = integerDeclaration;
         this.expressionNode = expressionNode;
     }
