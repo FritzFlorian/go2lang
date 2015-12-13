@@ -20,12 +20,14 @@ public class ScopeNode extends Node {
     private ScopeNode parentScope; //Needed for variable lookup
     private ParsingContext context;
     private List<Node> childNodes;
+    private int id;
 
     public ScopeNode(ScopeNode parentScope, ParsingContext context) {
         super(TYPE.SCOPE);
         this.parentScope = parentScope;
         this.integerDeclarations = new HashMap<>();
         this.context = context;
+        this.id = context.getNextScopeId();
         this.childNodes = new ArrayList<>();
     }
 
@@ -48,6 +50,9 @@ public class ScopeNode extends Node {
 
     public List<Node> getChildNodes() {
         return childNodes;
+    }
+    public Map<String, IntegerDeclaration> getIntegerDeclarations() {
+        return integerDeclarations;
     }
 
     /**
@@ -72,5 +77,9 @@ public class ScopeNode extends Node {
 
     public IntegerDeclaration getLocalIntegerDeclaration(String name) {
         return integerDeclarations.get(name);
+    }
+
+    public int getId() {
+        return id;
     }
 }

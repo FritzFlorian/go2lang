@@ -10,30 +10,26 @@ import java.util.Map;
  */
 public class ParsingResult {
     private ScopeNode rootScope;
-    private List<Token> tokenList;
     private List<LabelDeclaration> labelList;
     private Map<LabelDeclaration, ScopeNode> targetScopes;
     private Map<String, LabelDeclaration> targetLabels;
+    private List<ScopeNode> scopeNodes;
     private ParsingContext context;
 
 
-    public ParsingResult(ScopeNode rootScope, List<Token> tokenList, List<LabelDeclaration> labelList,
+    public ParsingResult(ScopeNode rootScope, List<LabelDeclaration> labelList,
                          Map<LabelDeclaration, ScopeNode> targetScopes, Map<String, LabelDeclaration> targetLabels,
-                         ParsingContext context) {
+                         ParsingContext context, List<ScopeNode> scopeNodes) {
         this.rootScope = rootScope;
-        this.tokenList = tokenList;
         this.labelList = labelList;
         this.targetScopes = targetScopes;
         this.targetLabels = targetLabels;
         this.context = context;
+        this.scopeNodes = scopeNodes;
     }
 
     public ScopeNode getRootScope() {
         return rootScope;
-    }
-
-    public List<Token> getTokenList() {
-        return tokenList;
     }
 
     public List<LabelDeclaration> getLabelList() {
@@ -50,5 +46,9 @@ public class ParsingResult {
 
     public ParsingContext getContext() {
         return context;
+    }
+
+    public List<ScopeNode> getScopeNodes() {
+        return scopeNodes;
     }
 }

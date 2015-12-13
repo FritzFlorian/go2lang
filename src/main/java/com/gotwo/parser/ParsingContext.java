@@ -9,10 +9,12 @@ package com.gotwo.parser;
 public class ParsingContext {
     private int currentIntegerId;
     private int currentLabelId;
+    private int currentScopeId;
 
     public ParsingContext() {
         currentIntegerId = 0;
         currentLabelId = 0;
+        currentScopeId = 0;
     }
 
     public int getNextIntegerId() {
@@ -21,5 +23,9 @@ public class ParsingContext {
 
     public int getNextLabelId() {
         return ++currentLabelId;
+    }
+
+    public int getNextScopeId() {
+        return ++currentScopeId;
     }
 }

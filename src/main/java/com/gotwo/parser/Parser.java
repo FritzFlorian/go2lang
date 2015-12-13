@@ -24,12 +24,14 @@ public class Parser {
     private List<LabelDeclaration> labelList;
     private Map<LabelDeclaration, ScopeNode> targetScopes;
     private Map<String, LabelDeclaration> targetLabels;
+    private List<ScopeNode> scopeNodes;
     private ParsingContext context;
 
     public Parser(List<Token> tokenList) {
         this.tokenList = tokenList;
         this.context = new ParsingContext();
         this.labelList = new ArrayList<>();
+        this.scopeNodes = new ArrayList<>();
         this.targetScopes = new HashMap<>();
         this.targetLabels = new HashMap<>();
 
@@ -42,7 +44,7 @@ public class Parser {
         ScopeNode root = parseScope(null);  //The root scope is the special, most outer scope
                                             //It never has a parent scope(during compile time)
 
-        return new ParsingResult(root, tokenList, labelList, targetScopes, targetLabels, context);
+        return new ParsingResult(root, labelList, targetScopes, targetLabels, context, scopeNodes);
     }
 
     /**
@@ -51,6 +53,7 @@ public class Parser {
      */
     private ScopeNode parseScope(ScopeNode parent) throws RequireTokenException, IllegalTokenException, UndeclearedIdentifier, DuplicatedIdentifier {
         ScopeNode currentScope = new ScopeNode(parent, context);
+        scopeNodes.add(currentScope);
 
         Token currentToken;
         //Lets parse until we reach the end of the scope
@@ -191,7 +194,7 @@ public class Parser {
         requireToken(Token.TYPE.ASSIGNMENT);
         tokenList.remove(0);
 
-        currentScope.addChildNode(new AssigmentNode(integerDeclaration, handleExpression(currentScope)));
+        currentScope.addChildNode(new AssignmentNode(integerDeclaration, handleExpression(currentScope)));
     }
 
     private ExpressionNode handleExpression(ScopeNode currentScope) throws IllegalTokenException, RequireTokenException, UndeclearedIdentifier {

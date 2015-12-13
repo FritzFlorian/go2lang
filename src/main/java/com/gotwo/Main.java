@@ -1,5 +1,6 @@
 package com.gotwo;
 
+import com.gotwo.codegen.CodeGenerator;
 import com.gotwo.error.*;
 import com.gotwo.lexer.Lexer;
 import com.gotwo.lexer.Token;
@@ -16,7 +17,7 @@ import java.util.List;
 public class Main {
 
     public static void main(String[] args) {
-        String str = "int x = 531\nint y = 0\nx = (y + 4) * y\nlabel start\nscope\nint x = 4\ny = 4\nend\nrun to start";
+        String str = "int x = 4\nint y = 0\nlabel start\nscope\nint x = 5\ny = 4\nend\nrun to start";
 
         // convert String into InputStream
         InputStream is = new ByteArrayInputStream(str.getBytes());
@@ -35,7 +36,9 @@ public class Main {
             Parser parser = new Parser(tokenList);
             ParsingResult res;
             res = parser.parseTokens();
-            System.out.print(res);
+
+            CodeGenerator codeGenerator = new CodeGenerator(res);
+            codeGenerator.generateClassFile("build/output", "Dummy");
         } catch (IOException e) {
             e.printStackTrace();
         } catch (LexerException e) {

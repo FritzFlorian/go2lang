@@ -7,11 +7,11 @@ package com.gotwo.parser;
  * We assign an value to an Integer declaration(for now).
  * This value is an expression, this can be as complex as needed.
  */
-public class AssigmentNode extends Node {
+public class AssignmentNode extends Node {
     private IntegerDeclaration integerDeclaration;
     private ExpressionNode expressionNode;
 
-    public AssigmentNode(IntegerDeclaration integerDeclaration, ExpressionNode expressionNode) {
+    public AssignmentNode(IntegerDeclaration integerDeclaration, ExpressionNode expressionNode) {
         super(TYPE.ASSIGNMENT);
         this.integerDeclaration = integerDeclaration;
         this.expressionNode = expressionNode;
