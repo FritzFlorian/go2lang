@@ -205,6 +205,31 @@ public class Parser {
          * 3) <=, >=, ==, !=     NOT IMPLEMENTED
          */
 
+        ExpressionNode left = handleSum(currentScope);
+
+        Token currentToken = tokenList.get(0);
+        if(currentToken.getType() == Token.TYPE.OPERATOR) {
+            Operator operator = (Operator)currentToken;
+
+            if(operator.getOp() == Operator.OP.GREATER || operator.getOp() == Operator.OP.LESS
+                    || operator.getOp() == Operator.OP.GREATEREQU || operator.getOp() == Operator.OP.LESSEQU
+                    || operator.getOp() == Operator.OP.EQU || operator.getOp() == Operator.OP.NOTEQU) {
+                tokenList.remove(0);
+                return new ExpressionNode.SubExpressionNode(left, operator, handleExpression(currentScope));
+            }
+        }
+
+        return left;
+    }
+
+    private ExpressionNode handleSum(ScopeNode currentScope) throws IllegalTokenException, RequireTokenException, UndeclearedIdentifier {
+        /**
+         * Operator Precedence:
+         * 1) *, /
+         * 2) +, -
+         * 3) <=, >=, ==, !=     NOT IMPLEMENTED
+         */
+
         ExpressionNode left = handleTerm(currentScope);
 
         Token currentToken = tokenList.get(0);
@@ -213,7 +238,7 @@ public class Parser {
 
             if(operator.getOp() == Operator.OP.ADD || operator.getOp() == Operator.OP.SUB) {
                 tokenList.remove(0);
-                return new ExpressionNode.SubExpressionNode(left, operator, handleTerm(currentScope));
+                return new ExpressionNode.SubExpressionNode(left, operator, handleSum(currentScope));
             }
         }
 
@@ -229,7 +254,7 @@ public class Parser {
 
             if(operator.getOp() == Operator.OP.MUL || operator.getOp() == Operator.OP.DIV) {
                 tokenList.remove(0);
-                return new ExpressionNode.SubExpressionNode(left, operator, handleFactor(currentScope));
+                return new ExpressionNode.SubExpressionNode(left, operator, handleTerm(currentScope));
             }
         }
 

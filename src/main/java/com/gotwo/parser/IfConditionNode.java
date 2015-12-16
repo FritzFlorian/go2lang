@@ -8,7 +8,16 @@ public class IfConditionNode extends ConditionNode {
     private ExpressionNode expression;
 
     public IfConditionNode(ExpressionNode expression, ScopeNode ifScope) {
+        super(BRANCHES.IF);
         this.expression = expression;
         this.ifScope = ifScope;
+    }
+
+    public ScopeNode getIfScope() {
+        return ifScope;
+    }
+
+    public ExpressionNode getExpression() {
+        return expression;
     }
 }

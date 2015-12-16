@@ -16,14 +16,9 @@ import java.util.List;
  */
 public class Main {
 
-    public static void main(String[] args) {
-        String str = "int x = 4\nint y = 0\nlabel start\nscope\nint x = 5\ny = 4\nend\nrun to start";
-
-        // convert String into InputStream
-        InputStream is = new ByteArrayInputStream(str.getBytes());
-
+    public static void main(String[] args) throws FileNotFoundException {
         // read it with BufferedReader
-        BufferedReader br = new BufferedReader(new InputStreamReader(is));
+        BufferedReader br = new BufferedReader(new FileReader("build/input/Dummy.go2"));
 
 
         Lexer lexer = new Lexer(br);

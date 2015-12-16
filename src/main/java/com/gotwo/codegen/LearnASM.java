@@ -20,6 +20,14 @@ public class LearnASM {
 
         int i = 315 * currentScope.getIntegerValue("test");
         currentScope.setIntegerValue("name", i);
+        int j = 6431531;
+        i = i + j;
+    }
+
+    public void test() {
+        int i = 1;
+        int j = 6;
+
     }
 
     public Scope initScopeWithId(int id, Scope logicalParent) {

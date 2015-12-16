@@ -229,7 +229,7 @@ public class CodeGenerator implements Opcodes{
             //Get the variable name
             mv.visitLdcInsn(integerDeclaration.getName());
             //Get the variables default value
-            mv.visitIntInsn(SIPUSH, integerDeclaration.getValue());
+            mv.visitLdcInsn(new Integer(integerDeclaration.getValue()));
             //add it to the scope
             mv.visitMethodInsn(INVOKEVIRTUAL, "com/gotwo/codegen/Scope", "setLocalIntegerVariable", "(Ljava/lang/String;I)V", false);
         }
@@ -270,12 +270,11 @@ public class CodeGenerator implements Opcodes{
      * @return The maximum used stack height
      */
     private int generateScopeNodeCode(MethodVisitor mv, ScopeNode scopeNode, String className) {
-        int localStackHeight = 5;
+        int localStackHeight = 4;
         int tempStackHeight = 0;
 
         //Generate the current scope
         //At this point the stack should be empty
-        mv.visitVarInsn(ALOAD, 0);
         mv.visitVarInsn(ALOAD, 0);
         mv.visitIntInsn(SIPUSH, scopeNode.getId());
         mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
@@ -293,16 +292,60 @@ public class CodeGenerator implements Opcodes{
                         localStackHeight = tempStackHeight;
                     }
                     break;
+
                 case ASSIGNMENT:
                     tempStackHeight = generateAssignment(mv, (AssignmentNode)node, className);
                     if(tempStackHeight > localStackHeight) {
                         localStackHeight = tempStackHeight;
                     }
                     break;
+
+                case CONDITION:
+                    tempStackHeight = generateCondition(mv, (ConditionNode) node, className);
+                    if(tempStackHeight > localStackHeight) {
+                        localStackHeight = tempStackHeight;
+                    }
+                    break;
+
+                case GOTO:
+                    break;
             }
         }
 
         return localStackHeight;
+    }
+
+    /**
+     * @return The maximum used stack height
+     */
+    private int generateCondition(MethodVisitor mv, ConditionNode conditionNode, String className) {
+        switch (conditionNode.getBranches()) {
+            case IF:
+                return generateIfCondition(mv, (IfConditionNode) conditionNode, className);
+            case IFELSE:
+                return 0;
+        }
+
+        return 0;
+    }
+
+    /**
+     * @return The maximum used stack height
+     */
+    private int generateIfCondition(MethodVisitor mv, IfConditionNode ifConditionNode, String className) {
+        Label endLabel = new Label();
+        int stackHeight, tempStackHeight;
+
+        stackHeight = generateExpression(mv, ifConditionNode.getExpression(), className, 0);
+        mv.visitJumpInsn(IFEQ, endLabel); //Go to end if it is equal to zero
+        tempStackHeight = generateScopeNodeCode(mv, ifConditionNode.getIfScope(), className); //otherwise run a new scope...
+        mv.visitLabel(endLabel);
+
+        if(stackHeight > tempStackHeight) {
+            return stackHeight;
+        } else  {
+            return tempStackHeight;
+        }
     }
 
     /**
@@ -319,7 +362,7 @@ public class CodeGenerator implements Opcodes{
         mv.visitMethodInsn(INVOKEVIRTUAL, "com/gotwo/codegen/Scope", "setIntegerValue", "(Ljava/lang/String;I)V", false);
         //Stack should be empty at this point
 
-        return stackHeight;
+        return stackHeight + 2;
     }
 
     /**
@@ -339,8 +382,12 @@ public class CodeGenerator implements Opcodes{
             //An expression that has 2 sub values and an operator connecting them
             ExpressionNode.SubExpressionNode subExpressionNode = (ExpressionNode.SubExpressionNode)expressionNode;
 
-            tempStackHeight = generateExpression(mv, subExpressionNode.getLeft(), className, stackDepth);
-            localStackHeight = generateExpression(mv, subExpressionNode.getRight(), className, tempStackHeight);
+            localStackHeight = generateExpression(mv, subExpressionNode.getLeft(), className, stackDepth);
+            tempStackHeight = generateExpression(mv, subExpressionNode.getRight(), className, stackDepth + 1);
+
+            if(tempStackHeight > localStackHeight) {
+                localStackHeight = tempStackHeight;
+            }
 
             switch (subExpressionNode.getOperator().getOp()) {
                 case ADD:
@@ -356,19 +403,43 @@ public class CodeGenerator implements Opcodes{
                     mv.visitInsn(IMUL);
                     break;
                 case EQU:
-                    //TODO: Implement boolean operators
-                    break;
                 case NOTEQU:
-                    break;
                 case LESS:
-                    break;
                 case GREATER:
-                    break;
                 case LESSEQU:
-                    break;
                 case GREATEREQU:
-                    break;
                 case NOT:
+                    mv.visitInsn(ISUB);
+                    mv.visitInsn(ICONST_1); //Default is true
+                    mv.visitInsn(SWAP);
+
+                    Label trueLabel = new Label(); //We jump here if the expression is true
+                    //Now we have to decide when to jump to true or false
+                    switch (subExpressionNode.getOperator().getOp()) {
+                        case EQU:
+                            mv.visitJumpInsn(IFEQ, trueLabel);
+                            break;
+                        case NOTEQU:
+                            mv.visitJumpInsn(IFNE, trueLabel);
+                            break;
+                        case GREATER:
+                            mv.visitJumpInsn(IFGT, trueLabel);
+                            break;
+                        case GREATEREQU:
+                            mv.visitJumpInsn(IFGE, trueLabel);
+                            break;
+                        case LESS:
+                            mv.visitJumpInsn(IFLT, trueLabel);
+                            break;
+                        case LESSEQU:
+                            mv.visitJumpInsn(IFLE, trueLabel);
+                            break;
+                    }
+
+                    mv.visitInsn(POP);
+                    mv.visitInsn(ICONST_0); // Set result to false
+                    mv.visitLabel(trueLabel); //Jump over "set false" instructions
+
                     break;
             }
         } else if(expressionNode instanceof ExpressionNode.IntExpressionNode){
@@ -377,10 +448,10 @@ public class CodeGenerator implements Opcodes{
             mv.visitLdcInsn(intExpressionNode.getIntegerDeclaration().getName());
             mv.visitMethodInsn(INVOKEVIRTUAL, "com/gotwo/codegen/Scope", "getIntegerValue", "(Ljava/lang/String;)I", false);
 
-            localStackHeight = stackDepth + 3;
+            localStackHeight = stackDepth + 2;
         } else {
             ExpressionNode.ConstIntExpressionNode constIntExpressionNode = (ExpressionNode.ConstIntExpressionNode) expressionNode;
-            mv.visitIntInsn(SIPUSH, constIntExpressionNode.getValue());
+            mv.visitLdcInsn(new Integer(constIntExpressionNode.getValue()));
 
             localStackHeight = stackDepth + 1;
         }
