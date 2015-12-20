@@ -9,7 +9,7 @@ package com.gotwo.lexer;
  * This way we keep up with simple operator precedence.
  */
 public class Operator extends Token {
-    public enum OP {ADD, SUB, DIV, MUL, EQU, NOTEQU, LESS, GREATER, LESSEQU, GREATEREQU, NOT}
+    public enum OP {ADD, SUB, DIV, MUL, MOD, EQU, NOTEQU, LESS, GREATER, LESSEQU, GREATEREQU, NOT}
     private OP op;
 
     public Operator(OP op) {

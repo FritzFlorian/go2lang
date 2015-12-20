@@ -28,10 +28,11 @@ public class LearnASM {
         int i = 1;
         int j = 6;
 
+        i = i % j;
     }
 
     public Scope initScopeWithId(int id, Scope logicalParent) {
-        Scope result = new Scope(logicalParent);
+        Scope result = new Scope(logicalParent, id);
 
         switch (id) {
             case 1:

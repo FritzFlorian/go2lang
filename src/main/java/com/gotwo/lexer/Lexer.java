@@ -104,6 +104,9 @@ public class Lexer {
                     case '*':
                         tokenList.add(new Operator(Operator.OP.MUL));
                         break;
+                    case '%':
+                        tokenList.add(new Operator(Operator.OP.MOD));
+                        break;
                     case '/':
                         tokenList.add(new Operator(Operator.OP.DIV));
                         break;

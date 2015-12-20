@@ -4,7 +4,7 @@ package com.gotwo.parser;
  * Created by florian on 07/12/15.
  */
 public abstract class ConditionNode extends Node {
-    public enum BRANCHES{IF, IFELSE};
+    public enum BRANCHES{IF}
     private BRANCHES branches;
 
     public ConditionNode(BRANCHES branches) {
@@ -19,8 +19,4 @@ public abstract class ConditionNode extends Node {
     public static ConditionNode NewConditionNode(ExpressionNode expression, ScopeNode ifScope) {
         return new IfConditionNode(expression, ifScope);
     }
-
-    /*public static NewConditionNode(ScopeNode ifScope, ScopeNode elseScope) {
-
-    }*/
 }

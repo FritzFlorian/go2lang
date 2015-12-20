@@ -21,6 +21,7 @@ public class ScopeNode extends Node {
     private ParsingContext context;
     private List<Node> childNodes;
     private int id;
+    private int height;
 
     public ScopeNode(ScopeNode parentScope, ParsingContext context) {
         super(TYPE.SCOPE);
@@ -29,6 +30,12 @@ public class ScopeNode extends Node {
         this.context = context;
         this.id = context.getNextScopeId();
         this.childNodes = new ArrayList<>();
+
+        if(parentScope == null) {
+            height = 0;
+        } else {
+            height = parentScope.getHeight() + 1;
+        }
     }
 
     public boolean addInteger(String name, int value) {
@@ -46,6 +53,10 @@ public class ScopeNode extends Node {
 
     public void addChildNode(Node newChild) {
         childNodes.add(newChild);
+    }
+
+    public void addFirstChildNode(Node newChild) {
+        childNodes.add(0, newChild);
     }
 
     public List<Node> getChildNodes() {
@@ -81,5 +92,13 @@ public class ScopeNode extends Node {
 
     public int getId() {
         return id;
+    }
+
+    public int getHeight() {
+        return height;
+    }
+
+    public ScopeNode getParentScope() {
+        return parentScope;
     }
 }

@@ -44,6 +44,11 @@ public class Parser {
         ScopeNode root = parseScope(null);  //The root scope is the special, most outer scope
                                             //It never has a parent scope(during compile time)
 
+        if(targetLabels.containsKey("start")) {
+            //Generate start goto
+            root.addFirstChildNode(new GoToLabelNode(GoToLabelNode.SPEED.SPRINT, targetLabels.get("start")));
+        }
+
         return new ParsingResult(root, labelList, targetScopes, targetLabels, context, scopeNodes);
     }
 
@@ -68,9 +73,8 @@ public class Parser {
                 case KEYWORD:
                     Keyword keyword = (Keyword)currentToken;
                     //First handle one special case, we finished parsing an complete scope
-                    //Do not remove the end/else keyword, this might be used by the calling method
-                    if(keyword.getKey() == Keyword.KEY.END
-                            || keyword.getKey() == Keyword.KEY.ELSE) {
+                    //Do not remove the end keyword, this might be used by the calling method
+                    if(keyword.getKey() == Keyword.KEY.END) {
                         return currentScope;
                     }
                     tokenList.remove(0);
@@ -146,6 +150,9 @@ public class Parser {
             case RUN:
                 handleGoToNode(GoToLabelNode.SPEED.RUN, currentScope);
                 break;
+            case SPRINT:
+                handleGoToNode(GoToLabelNode.SPEED.SPRINT, currentScope);
+                break;
 
             case IF:
                 handleIfBlock(currentScope);
@@ -170,6 +177,15 @@ public class Parser {
     }
 
     private void handleGoToLabelNode(GoToLabelNode.SPEED speed, ScopeNode currentScope) throws RequireTokenException, IllegalTokenException, DuplicatedIdentifier {
+        Token currentToken = requireToken();
+        if(currentToken.getType() == Token.TYPE.KEYWORD) {
+            //Special case for language keywords/bindings
+            //We will replace this with runtime calls later, but it should be good for now
+            tokenList.remove(0);
+            handleGoToSpecial(speed, currentScope, (Keyword)currentToken);
+            return;
+        }
+
         Identifier identifier = (Identifier)requireToken(Token.TYPE.IDENTIFIER);
         tokenList.remove(0);
 
@@ -179,6 +195,16 @@ public class Parser {
         }
 
         currentScope.addChildNode(new GoToLabelNode(speed, targetLabel));
+    }
+
+    private void handleGoToSpecial(GoToLabelNode.SPEED speed, ScopeNode currentScope, Keyword keyword) throws IllegalTokenException {
+        switch (keyword.getKey()) {
+            case CONSOLE:
+                currentScope.addChildNode(new GoToSpecialNode(speed, GoToSpecialNode.SPECIAL.CONSOLE));
+                break;
+            default:
+                throw new IllegalTokenException(null, keyword);
+        }
     }
 
     /**
@@ -252,7 +278,7 @@ public class Parser {
         if(currentToken.getType() == Token.TYPE.OPERATOR) {
             Operator operator = (Operator)currentToken;
 
-            if(operator.getOp() == Operator.OP.MUL || operator.getOp() == Operator.OP.DIV) {
+            if(operator.getOp() == Operator.OP.MUL || operator.getOp() == Operator.OP.DIV || operator.getOp() == Operator.OP.MOD) {
                 tokenList.remove(0);
                 return new ExpressionNode.SubExpressionNode(left, operator, handleTerm(currentScope));
             }
@@ -302,7 +328,7 @@ public class Parser {
     }
 
     /**
-     * Parse an if and an if-else block.
+     * Parse an if block.
      * Adds the blocks to the current scope.
      */
     private void handleIfBlock(ScopeNode currentScope) throws IllegalTokenException, RequireTokenException, UndeclearedIdentifier, DuplicatedIdentifier {
@@ -310,8 +336,7 @@ public class Parser {
         ExpressionNode expression = handleExpression(currentScope);
         //Now get the if block
         ScopeNode ifScope = parseScope(currentScope);
-        //Get the next token to see if there is an else block
-        //There has to be an ELSE or an END for valid syntax
+        //There has to be an END for valid syntax
         Token currentToken = tokenList.get(0);
         if(currentToken.getType() != Token.TYPE.KEYWORD) {
             throw new IllegalTokenException(new Keyword(Keyword.KEY.END), currentToken);
@@ -321,21 +346,6 @@ public class Parser {
         Keyword endKeyword = (Keyword)currentToken;
         if(endKeyword.getKey() == Keyword.KEY.END) {
             currentScope.addChildNode(ConditionNode.NewConditionNode(expression, ifScope));
-        } else if(endKeyword.getKey() == Keyword.KEY.ELSE) {
-            ScopeNode elseScope = parseScope(currentScope);
-            //Now we need an end for sure
-            currentToken = tokenList.get(0);
-            if(currentToken.getType() != Token.TYPE.KEYWORD) {
-                throw new IllegalTokenException(new Keyword(Keyword.KEY.END), currentToken);
-            }
-            //We are happy, take the token from the list
-            tokenList.remove(0);
-            endKeyword = (Keyword)currentToken;
-            if(endKeyword.getKey() != Keyword.KEY.END) {
-                throw new IllegalTokenException(new Keyword(Keyword.KEY.END), currentToken);
-            }
-            //We finished the else block
-            //TODO: Add if-else node
         }
     }
 
@@ -367,7 +377,7 @@ public class Parser {
                 if(labelDeclaration.isDeclared()) {
                     throw new DuplicatedIdentifier(name);
                 } else {
-                    labelDeclaration.markAsDeclared();
+                    labelDeclaration.markAsDeclared(currentScope);
                 }
             }
 

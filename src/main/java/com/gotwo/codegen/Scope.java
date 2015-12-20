@@ -2,6 +2,7 @@ package com.gotwo.codegen;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Created by florian on 12/12/15.
@@ -13,11 +14,13 @@ import java.util.Map;
 public class Scope {
     private Scope logicalParent;
     private Map<String,Integer> integers;
+    private int id;
 
 
-    public Scope(Scope logicalParent) {
+    public Scope(Scope logicalParent, int id) {
         this.logicalParent = logicalParent;
         this.integers = new HashMap<>();
+        this.id = id;
     }
 
     /**
@@ -31,7 +34,7 @@ public class Scope {
      * @param value The new value for the variable
      */
     public void setLocalIntegerVariable(String name, int value) {
-        System.out.println("Init integer " + name + " with value " + value);
+        //System.out.println("Init integer " + name + " with value " + value);
         integers.put(name, value);
     }
 
@@ -46,7 +49,7 @@ public class Scope {
      * @param value The new value for the variable
      */
     public void setIntegerValue(String name, int value) {
-        System.out.println("Update integer " + name + " to value " + value);
+        //System.out.println("Update integer " + name + " to value " + value);
         Scope currentScope = this;
         while(!currentScope.integers.containsKey(name)) {
             currentScope = currentScope.logicalParent;
@@ -69,5 +72,48 @@ public class Scope {
         }
 
         return currentScope.integers.get(name);
+    }
+
+    /**
+     * Returns a parent scope with a given id.
+     * Needed to find the right Scopes at go to instructions.
+     *
+     * @param id
+     * @return
+     */
+    public Scope getParentWithId(int id) {
+        Scope currentScope = this;
+        while(currentScope.id != id) {
+            currentScope = currentScope.logicalParent;
+        }
+
+        return currentScope;
+    }
+
+    /**
+     * Merges two scopes like supposed when going to an label.
+     * Uses the given scope to change variable of this scope.
+     *
+     * @param oldScope The old scope to merge variables into this scope.
+     */
+    public void mergeForGoTo(Scope oldScope) {
+        Set<Map.Entry<String, Integer>> oldIntegers = oldScope.integers.entrySet();
+
+        for(Map.Entry<String, Integer> oldInteger : oldIntegers) {
+           if(integers.containsKey(oldInteger.getKey())) {
+               integers.put(oldInteger.getKey(), oldInteger.getValue());
+           }
+        }
+    }
+
+    /**
+     * A debug method to get variables printed to console.
+     */
+    public void printRun() {
+        Set<Map.Entry<String, Integer>> integerSet = integers.entrySet();
+
+        for(Map.Entry<String, Integer> integer : integerSet) {
+            System.out.println(integer.getKey() + " = " + integer.getValue());
+        }
     }
 }

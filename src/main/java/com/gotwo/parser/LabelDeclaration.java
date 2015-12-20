@@ -1,5 +1,8 @@
 package com.gotwo.parser;
 
+
+import org.objectweb.asm.Label;
+
 /**
  * Created by florian on 05/12/15.
  */
@@ -9,6 +12,7 @@ public class LabelDeclaration {
     private int id;
     private int position;
     private boolean declared;
+    private Label label;
 
     public LabelDeclaration(String name, ScopeNode scope, int id,int position, boolean declared) {
         this.name = name;
@@ -18,7 +22,8 @@ public class LabelDeclaration {
         this.declared = declared;
     }
 
-    public void markAsDeclared() {
+    public void markAsDeclared(ScopeNode scope) {
+        this.scope = scope;
         declared = true;
     }
 
@@ -40,5 +45,14 @@ public class LabelDeclaration {
 
     public int getPosition() {
         return position;
+    }
+
+
+    public Label getLabel() {
+        if(label == null) {
+            label = new Label();
+        }
+
+        return label;
     }
 }

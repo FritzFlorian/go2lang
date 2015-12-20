@@ -4,7 +4,7 @@ package com.gotwo.parser;
  * Created by florian on 10/12/15.
  */
 public class GoToLabelNode extends Node {
-    public enum SPEED {GO, RUN, WALK}
+    public enum SPEED {GO, RUN, WALK, SPRINT}
 
     private LabelDeclaration target;
     private SPEED speed;

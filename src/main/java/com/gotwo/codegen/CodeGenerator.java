@@ -1,5 +1,6 @@
 package com.gotwo.codegen;
 
+import com.gotwo.error.UndeclearedIdentifier;
 import com.gotwo.parser.*;
 import org.objectweb.asm.*;
 
@@ -11,21 +12,42 @@ import java.util.stream.Collectors;
 
 /**
  * Created by florian on 10/12/15.
+ *
+ * This will turn results form the parser in executable bytecode.
+ * Might seem like the magic of compilers happens here,
+ * but you will very soon notice that (despite possible performance optimizing)
+ * there really is nothing complex in here. Simply spill out bytecode statement
+ * after statement. As long as each simple, individual part does its job
+ * everything will work out in the end.
  */
 public class CodeGenerator implements Opcodes{
+    //The name of the initScopeWithId method
     private static final String METHOD_INIT_SCOPE = "initScopeWithId";
+    //The Parameter list of the initScopeWithId method
     private static final String METHOD_INIT_SCOPE_PARAMETERS = "(ILcom/gotwo/codegen/Scope;)Lcom/gotwo/codegen/Scope;";
+    //The position of the current_scope local variable in the run method
+    private static final int CURRENT_SCOPE = 1;
 
     private ParsingResult parsingResult;
 
+    private String className;
 
-    public CodeGenerator(ParsingResult parsingResult) {
+
+    public CodeGenerator(ParsingResult parsingResult, String className) {
         this.parsingResult = parsingResult;
-
+        this.className = className;
     }
 
-    public void generateClassFile(String targetPath, String className) {
-        String target = targetPath + "/com/gotwo/" + className + ".class";
+    /**
+     * Generates bytecode out of the given parsing Result.
+     * Will save it in the target Path.
+     *
+     * @param targetPath The root path of the output.
+     * @throws UndeclearedIdentifier
+     */
+    public void generateClassFile(String targetPath) throws UndeclearedIdentifier {
+        String target = targetPath + className + ".class";
+
         try {
             File file = new File(target);
             if(file.exists()) {
@@ -35,47 +57,62 @@ public class CodeGenerator implements Opcodes{
             file.createNewFile();
 
             FileOutputStream fos = new FileOutputStream(target);
-            fos.write(generateJavaByteCode("com/gotwo/" + className));
+            fos.write(generateJavaByteCode());
             fos.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    public byte[] generateJavaByteCode(String className) {
+    /**
+     * Generates executable Java bytecode out of the given Parsing result.
+     *
+     * @return The generated Java bytecode
+     * @throws UndeclearedIdentifier
+     */
+    public byte[] generateJavaByteCode() throws UndeclearedIdentifier {
         ClassWriter cw = new ClassWriter(0);
 
-
         //Create the class in the right package
-        visitClassDeclaration(cw, className);
-
+        visitClassDeclaration(cw);
         //Init the fields (attributes)
         visitFields(cw);
-
         //Add an empty constructor
         visitConstructor(cw);
 
         if(parsingResult.getTargetLabels().get("start") != null) {
             //This is an runnable go2 program
             //Add an main method that launches the program
-            visitMainMethod(cw, className);
+            visitMainMethod(cw);
         }
 
+        //Add method to generate an given scope with default variables
         visitInitScopeWithIdMethod(cw);
-        visitRunMethod(cw, className);
-
+        //Add the actual program logic
+        visitRunMethod(cw);
 
         cw.visitEnd();
+
         return cw.toByteArray();
     }
 
+    /**
+     * Adds all the needed attributes to the class.
+     *
+     * @param cw The current ClassWriter instance.
+     */
     private void visitFields(ClassWriter cw) {
         //Add an currentScope attribute that is used during execution of the code
         FieldVisitor fv = cw.visitField(ACC_PRIVATE, "currentScope", "Lcom/gotwo/codegen/Scope;", null, null);
         fv.visitEnd();
     }
 
-    private void visitClassDeclaration(ClassWriter cw, String className) {
+    /**
+     * Declares the class with the given name.
+     *
+     * @param cw The current ClassWriter instance.
+     */
+    private void visitClassDeclaration(ClassWriter cw) {
         cw.visit(49,
                 ACC_PUBLIC + ACC_SUPER,
                 className,
@@ -84,6 +121,12 @@ public class CodeGenerator implements Opcodes{
                 null);
     }
 
+    /**
+     * Adds the default constructor for the class.
+     * Has no logic in it, its simply required by the JVM.
+     *
+     * @param cw The current ClassWriter instance.
+     */
     private void visitConstructor(ClassWriter cw) {
         MethodVisitor mv = cw.visitMethod(ACC_PUBLIC, "<init>", "()V", null, null);
         mv.visitCode();
@@ -99,7 +142,13 @@ public class CodeGenerator implements Opcodes{
         mv.visitEnd();
     }
 
-    private void visitMainMethod(ClassWriter cw, String className) {
+    /**
+     * Adds an main method to the class.
+     * This will run the go2 program in an clean scope if called.
+     *
+     * @param cw The current ClassWriter instance.
+     */
+    private void visitMainMethod(ClassWriter cw) {
         //Create the method
         MethodVisitor mv = cw.visitMethod(ACC_PUBLIC + ACC_STATIC,
                 "main",
@@ -119,10 +168,7 @@ public class CodeGenerator implements Opcodes{
                 "(Ljava/lang/String;)V",
                 false);
 
-
-
         //Here we start, above is simply init and a "greeting" to make sure our program runs
-
         //Init a new instance of this class...
         mv.visitTypeInsn(NEW, className);
         mv.visitInsn(DUP); //Duplicate the reference, will need this later on
@@ -131,14 +177,19 @@ public class CodeGenerator implements Opcodes{
         //Call run on it
         mv.visitMethodInsn(INVOKEVIRTUAL, className, "run", "()V", false);
 
-
-
         //Return from the main method
         mv.visitInsn(RETURN);
         mv.visitMaxs(2, 1);
         mv.visitEnd();
     }
 
+    /**
+     * Adds a method that inits an given scope by its id.
+     * This will set all default variables for the scope.
+     * Can optionally add other scope setup logic.
+     *
+     * @param cw The current ClassWriter instance.
+     */
     private void visitInitScopeWithIdMethod(ClassWriter cw) {
         //Create the method
         //public Scope initScopeWithId(int id, Scope parentScope)
@@ -159,7 +210,8 @@ public class CodeGenerator implements Opcodes{
         mv.visitTypeInsn(NEW, "com/gotwo/codegen/Scope");
         mv.visitInsn(DUP);
         mv.visitVarInsn(ALOAD, 2);
-        mv.visitMethodInsn(INVOKESPECIAL, "com/gotwo/codegen/Scope", "<init>", "(Lcom/gotwo/codegen/Scope;)V", false);
+        mv.visitVarInsn(ILOAD, 1);
+        mv.visitMethodInsn(INVOKESPECIAL, "com/gotwo/codegen/Scope", "<init>", "(Lcom/gotwo/codegen/Scope;I)V", false);
 
         //Store it in variable 3
         //Variable 3 = newScope
@@ -182,7 +234,8 @@ public class CodeGenerator implements Opcodes{
 
             Set<Map.Entry<ScopeNode, Label>> labelSet = labels.entrySet();
             List<Map.Entry<ScopeNode, Label>> sortedLabelSet =
-                    labelSet.stream().sorted((o1, o2) -> o1.getKey().getId() - o2.getKey().getId()).collect(Collectors.toList());
+                    labelSet.stream()
+                            .sorted((o1, o2) -> o1.getKey().getId() - o2.getKey().getId()).collect(Collectors.toList());
 
             int[] values = new int[labelSet.size()];
             Label[] labelArray = new Label[labelSet.size()];
@@ -217,6 +270,16 @@ public class CodeGenerator implements Opcodes{
         mv.visitEnd();
     }
 
+    /**
+     * This method will add the init code of a given ScopeNode
+     * in form of an switch branch.
+     * It is called in the initBranchWithId method to generate
+     * a single branch in its init logic.
+     *
+     * @param mv The current active Method visitor.
+     * @param label The start label of the generated switch branch.
+     * @param scopeNode The ScopeNode that we generate the branch for.
+     */
     private void visitSwitchBranch(MethodVisitor mv, Label label, ScopeNode scopeNode) {
         mv.visitLabel(label);
 
@@ -229,7 +292,7 @@ public class CodeGenerator implements Opcodes{
             //Get the variable name
             mv.visitLdcInsn(integerDeclaration.getName());
             //Get the variables default value
-            mv.visitLdcInsn(new Integer(integerDeclaration.getValue()));
+            mv.visitLdcInsn(integerDeclaration.getValue());
             //add it to the scope
             mv.visitMethodInsn(INVOKEVIRTUAL, "com/gotwo/codegen/Scope", "setLocalIntegerVariable", "(Ljava/lang/String;I)V", false);
         }
@@ -238,10 +301,16 @@ public class CodeGenerator implements Opcodes{
         mv.visitInsn(POP);
     }
 
-    private static final int CURRENT_SCOPE = 1;
-    private void visitRunMethod(ClassWriter cw, String className) {
+    /**
+     * Adds the run method to the class.
+     * This contains the whole go2 program logic.
+     *
+     * @param cw The current ClassWriter instance.
+     * @throws UndeclearedIdentifier
+     */
+    private void visitRunMethod(ClassWriter cw) throws UndeclearedIdentifier {
         int maxStackHeight = 4;
-        int tempStackHeight = 0;
+        int tempStackHeight;
 
         MethodVisitor mv = cw.visitMethod(ACC_PUBLIC, "run", "()V", null, null);
         mv.visitCode();
@@ -254,7 +323,7 @@ public class CodeGenerator implements Opcodes{
         //Here comes the actual work
         //Convert the AST to bytecode
         //Lets do this recursive for sub-scopes
-        tempStackHeight = generateScopeNodeCode(mv ,parsingResult.getRootScope(), className);
+        tempStackHeight = generateScopeNodeCode(mv ,parsingResult.getRootScope() );
 
         if(tempStackHeight > maxStackHeight) {
             maxStackHeight = tempStackHeight;
@@ -267,16 +336,23 @@ public class CodeGenerator implements Opcodes{
     }
 
     /**
+     * Generates the code for a ScopeNode parsed from sourcecode.
+     * Scopes are the most important part in an go2 program.
+     * Everything happens inside a scope.
+     *
+     * @param mv The current MethodVisitor instance.
+     * @param scopeNode The ScopeNode to generate the code for.
      * @return The maximum used stack height
+     * @throws UndeclearedIdentifier
      */
-    private int generateScopeNodeCode(MethodVisitor mv, ScopeNode scopeNode, String className) {
+    private int generateScopeNodeCode(MethodVisitor mv, ScopeNode scopeNode) throws UndeclearedIdentifier {
         int localStackHeight = 4;
         int tempStackHeight = 0;
 
         //Generate the current scope
         //At this point the stack should be empty
         mv.visitVarInsn(ALOAD, 0);
-        mv.visitIntInsn(SIPUSH, scopeNode.getId());
+        mv.visitLdcInsn(scopeNode.getId());
         mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
         mv.visitMethodInsn(INVOKEVIRTUAL, className, "initScopeWithId", "(ILcom/gotwo/codegen/Scope;)Lcom/gotwo/codegen/Scope;", false);
         mv.visitVarInsn(ASTORE, CURRENT_SCOPE);
@@ -287,28 +363,32 @@ public class CodeGenerator implements Opcodes{
         for(Node node : scopeNode.getChildNodes()) {
             switch (node.getType()) {
                 case SCOPE:
-                    tempStackHeight = generateScopeNodeCode(mv, (ScopeNode)node, className);
-                    if(tempStackHeight > localStackHeight) {
-                        localStackHeight = tempStackHeight;
-                    }
+                    tempStackHeight = generateScopeNodeCode(mv, (ScopeNode)node);
                     break;
 
                 case ASSIGNMENT:
-                    tempStackHeight = generateAssignment(mv, (AssignmentNode)node, className);
-                    if(tempStackHeight > localStackHeight) {
-                        localStackHeight = tempStackHeight;
-                    }
+                    tempStackHeight = generateAssignment(mv, (AssignmentNode)node);
                     break;
 
                 case CONDITION:
-                    tempStackHeight = generateCondition(mv, (ConditionNode) node, className);
-                    if(tempStackHeight > localStackHeight) {
-                        localStackHeight = tempStackHeight;
-                    }
+                    tempStackHeight = generateCondition(mv, (ConditionNode) node);
+                    break;
+
+                case LABEL:
+                    tempStackHeight = generateLabel(mv, (LabelNode) node);
                     break;
 
                 case GOTO:
+                    tempStackHeight = generateGoTo(mv, (GoToLabelNode) node, scopeNode);
                     break;
+
+                case GOTOSPECIAL:
+                    tempStackHeight = generateGoToSpecial(mv, (GoToSpecialNode) node);
+                    break;
+            }
+
+            if(tempStackHeight > localStackHeight) {
+                localStackHeight = tempStackHeight;
             }
         }
 
@@ -316,29 +396,163 @@ public class CodeGenerator implements Opcodes{
     }
 
     /**
+     * Generates code for specialized labels.
+     * This is used for input/output right now, but
+     * will be replaced with a more flexible mechanism
+     * in the future.
+     *
+     * @param mv The current MethodVisitor instance.
+     * @param labelNode The GoToSpecialNode to generate code for.
+     * @return The maximum used stack height
+     * @throws UndeclearedIdentifier
+     */
+    private int generateGoToSpecial(MethodVisitor mv, GoToSpecialNode labelNode) throws UndeclearedIdentifier {
+        switch (labelNode.getSpecial()) {
+            case CONSOLE:
+                mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
+                mv.visitMethodInsn(INVOKEVIRTUAL, "com/gotwo/codegen/Scope", "printRun", "()V", false);
+                return 1;
+        }
+
+        throw new UndeclearedIdentifier(labelNode.getSpeed()  + " TO " + labelNode.getSpecial());
+    }
+
+    /**
+     * Generates all kinds of go to statements.
+     * This takes into consideration at which speed the go
+     * to should happen and generates code for the appropriate
+     * scope manipulations needed.
+     *
+     * @param mv The current MethodVisitor instance.
+     * @param labelNode The label node representing the go to statement to generate code for
+     * @param currentScope The scope that contains the go to statement
      * @return The maximum used stack height
      */
-    private int generateCondition(MethodVisitor mv, ConditionNode conditionNode, String className) {
+    private int generateGoTo(MethodVisitor mv, GoToLabelNode labelNode, ScopeNode currentScope) {
+        // Step one, find the common base scope.
+        // This is the level that we need to build up on.
+        // Try to be as accurate as possible at compile time,
+        // so lets search the id of the target scope.
+        ScopeNode currentStack = currentScope;
+        ScopeNode otherStack = labelNode.getTarget().getScope();
+        while(!currentStack.equals(otherStack)) { //Traverse down as long as the two scopes are not the equal base
+            if(currentStack.getHeight() <= otherStack.getHeight()) {
+                otherStack = otherStack.getParentScope(); // Go one down
+            } else {
+                currentStack = currentStack.getParentScope();
+            }
+        }
+        //currentStack now holds our target scopeNode, so we know its id
+
+        mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
+        mv.visitInsn(DUP);
+        mv.visitLdcInsn(currentStack.getId()); // put the target scope id on the stack
+        mv.visitMethodInsn(INVOKEVIRTUAL, "com/gotwo/codegen/Scope", "getParentWithId","(I)Lcom/gotwo/codegen/Scope;", false);
+        // Now there should be our common base scope on the stack
+        mv.visitVarInsn(ASTORE, CURRENT_SCOPE); //Save it
+        // The stack now holds only the "old" current scope
+
+        if(labelNode.getTarget().getScope().getHeight() > currentStack.getHeight()) {
+            generateNewScopeStack(mv, currentStack.getId(), labelNode.getTarget().getScope());
+        }
+        // The new current scope is now stored in CURRENT_SCOPE
+        switch (labelNode.getSpeed()) {
+            case GO:
+                mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
+                mv.visitInsn(SWAP);
+                mv.visitMethodInsn(INVOKEVIRTUAL, "com/gotwo/codegen/Scope", "mergeForRun","(Lcom/gotwo/codegen/Scope;)V", false);
+                break;
+            case RUN:
+                mv.visitInsn(POP);
+                break;
+            case WALK:
+                //TODO: Implement walk to
+                break;
+            case SPRINT:
+                //TODO: Implement sprint to
+                //Do not take any variables with us...
+                //Forget about the old scope
+                break;
+        }
+
+
+        mv.visitJumpInsn(GOTO ,labelNode.getTarget().getLabel());
+
+        return 4;
+    }
+
+    /**
+     * This method will generate a new scope based on a given target scope and an
+     * base scope that we build up on.
+     * Basically we need to build a stack of scopes starting at a given point in the scope hierarchy.
+     *
+     * @param mv The current MethodVisitor instance.
+     * @param commonBaseId The integer id of the layer that the new scope stack should be build up on.
+     * @param targetScope The target scope that we want to build up.
+     */
+    private void generateNewScopeStack(MethodVisitor mv, int commonBaseId, ScopeNode targetScope) {
+        if(targetScope.getId() != commonBaseId) {
+            generateNewScopeStack(mv, commonBaseId, targetScope.getParentScope()); //Go down and build our new scope from bottom to the top
+        }
+
+        //This should update the current scope one layer up a time
+        mv.visitVarInsn(ALOAD, 0);
+        mv.visitLdcInsn(targetScope.getId());
+        mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
+        mv.visitMethodInsn(INVOKEVIRTUAL, className, "initScopeWithId", "(ILcom/gotwo/codegen/Scope;)Lcom/gotwo/codegen/Scope;", false);
+        mv.visitVarInsn(ASTORE, CURRENT_SCOPE);
+    }
+
+    /**
+     * Generates a label defined in the source code.
+     * Its really simple right now, but it could get more complex later on.
+     *
+     * @param mv The current MethodVisitor instance.
+     * @param labelNode The label to be generated
+     * @return The maximum used stack height
+     */
+    private int generateLabel(MethodVisitor mv, LabelNode labelNode) {
+        mv.visitLabel( labelNode.getLabelDeclaration().getLabel() );
+        return 0;
+    }
+
+    /**
+     * This will generate code for an conditional node.
+     * Right now there is only a very basic if statement,
+     * but this could change in the future.
+     *
+     * @param mv The current MethodVisitor instance.
+     * @param conditionNode The Condition node to generate code for
+     * @return The maximum used stack height
+     * @throws UndeclearedIdentifier
+     */
+    private int generateCondition(MethodVisitor mv, ConditionNode conditionNode) throws UndeclearedIdentifier {
         switch (conditionNode.getBranches()) {
             case IF:
-                return generateIfCondition(mv, (IfConditionNode) conditionNode, className);
-            case IFELSE:
-                return 0;
+                return generateIfCondition(mv, (IfConditionNode) conditionNode);
         }
 
         return 0;
     }
 
     /**
+     * Generates the code far an simple if condition.
+     * This includes validation of the boolean statement and
+     * generating the inner scope that is called if the
+     * condition is true.
+     *
+     * @param mv The current MethodVisitor instance.
+     * @param ifConditionNode The node to generate code for
      * @return The maximum used stack height
+     * @throws UndeclearedIdentifier
      */
-    private int generateIfCondition(MethodVisitor mv, IfConditionNode ifConditionNode, String className) {
+    private int generateIfCondition(MethodVisitor mv, IfConditionNode ifConditionNode) throws UndeclearedIdentifier {
         Label endLabel = new Label();
         int stackHeight, tempStackHeight;
 
-        stackHeight = generateExpression(mv, ifConditionNode.getExpression(), className, 0);
+        stackHeight = generateExpression(mv, ifConditionNode.getExpression(), 0);
         mv.visitJumpInsn(IFEQ, endLabel); //Go to end if it is equal to zero
-        tempStackHeight = generateScopeNodeCode(mv, ifConditionNode.getIfScope(), className); //otherwise run a new scope...
+        tempStackHeight = generateScopeNodeCode(mv, ifConditionNode.getIfScope()); //otherwise run a new scope...
         mv.visitLabel(endLabel);
 
         if(stackHeight > tempStackHeight) {
@@ -349,16 +563,21 @@ public class CodeGenerator implements Opcodes{
     }
 
     /**
+     * Generates code for an simple assignment.
+     * Will evaluate the expression and set the variables value.
+     *
+     * @param mv The current MethodVisitor instance.
+     * @param assignmentNode The node to generate code for
      * @return The maximum used stack height
      */
-    private int generateAssignment(MethodVisitor mv, AssignmentNode assigmentNode, String className) {
+    private int generateAssignment(MethodVisitor mv, AssignmentNode assignmentNode) {
         //Quite simple to get an assignment done
         //Evaluate the right hand side expression(not job of this method)
         //Then simply assign the result to the right variable
 
         mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
-        mv.visitLdcInsn(assigmentNode.getIntegerDeclaration().getName());
-        int stackHeight = generateExpression(mv, assigmentNode.getExpressionNode(), className, 0);
+        mv.visitLdcInsn(assignmentNode.getIntegerDeclaration().getName());
+        int stackHeight = generateExpression(mv, assignmentNode.getExpressionNode(), 0);
         mv.visitMethodInsn(INVOKEVIRTUAL, "com/gotwo/codegen/Scope", "setIntegerValue", "(Ljava/lang/String;I)V", false);
         //Stack should be empty at this point
 
@@ -372,18 +591,21 @@ public class CodeGenerator implements Opcodes{
      * NOTE: Complicated sub-expressions will require stack space, so take note of it
      * and consider it in the visitMax() call
      *
+     * @param mv The current MethodVisitor instance
+     * @param expressionNode The node to generate code for
+     * @param stackDepth The current number of elements on the stack before the expression is evaluated
      * @return The maximum used stack height
      */
-    private int generateExpression(MethodVisitor mv, ExpressionNode expressionNode, String className, int stackDepth) {
-        int localStackHeight = stackDepth;
-        int tempStackHeight = 0;
+    private int generateExpression(MethodVisitor mv, ExpressionNode expressionNode, int stackDepth) {
+        int localStackHeight;
+        int tempStackHeight;
 
         if(expressionNode instanceof ExpressionNode.SubExpressionNode) {
             //An expression that has 2 sub values and an operator connecting them
             ExpressionNode.SubExpressionNode subExpressionNode = (ExpressionNode.SubExpressionNode)expressionNode;
 
-            localStackHeight = generateExpression(mv, subExpressionNode.getLeft(), className, stackDepth);
-            tempStackHeight = generateExpression(mv, subExpressionNode.getRight(), className, stackDepth + 1);
+            localStackHeight = generateExpression(mv, subExpressionNode.getLeft(), stackDepth);
+            tempStackHeight = generateExpression(mv, subExpressionNode.getRight(), stackDepth + 1);
 
             if(tempStackHeight > localStackHeight) {
                 localStackHeight = tempStackHeight;
@@ -401,6 +623,9 @@ public class CodeGenerator implements Opcodes{
                     break;
                 case MUL:
                     mv.visitInsn(IMUL);
+                    break;
+                case MOD:
+                    mv.visitInsn(IREM);
                     break;
                 case EQU:
                 case NOTEQU:
@@ -451,7 +676,7 @@ public class CodeGenerator implements Opcodes{
             localStackHeight = stackDepth + 2;
         } else {
             ExpressionNode.ConstIntExpressionNode constIntExpressionNode = (ExpressionNode.ConstIntExpressionNode) expressionNode;
-            mv.visitLdcInsn(new Integer(constIntExpressionNode.getValue()));
+            mv.visitLdcInsn(constIntExpressionNode.getValue());
 
             localStackHeight = stackDepth + 1;
         }

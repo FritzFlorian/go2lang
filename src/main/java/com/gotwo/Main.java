@@ -32,8 +32,8 @@ public class Main {
             ParsingResult res;
             res = parser.parseTokens();
 
-            CodeGenerator codeGenerator = new CodeGenerator(res);
-            codeGenerator.generateClassFile("build/output", "Dummy");
+            CodeGenerator codeGenerator = new CodeGenerator(res, "/com/gotwo/Dummy");
+            codeGenerator.generateClassFile("build/output");
         } catch (IOException e) {
             e.printStackTrace();
         } catch (LexerException e) {

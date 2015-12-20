@@ -27,7 +27,6 @@ public class LexerTests {
     public void recognizeSimpleKeywords() {
         recognizeKeyword("end", 0, Keyword.KEY.END);
         recognizeKeyword("if", 0, Keyword.KEY.IF);
-        recognizeKeyword("else", 0, Keyword.KEY.ELSE);
         recognizeKeyword("int", 0, Keyword.KEY.INT);
         recognizeKeyword("label", 0, Keyword.KEY.LABEL);
         recognizeKeyword("scope", 0, Keyword.KEY.SCOPE);
@@ -122,6 +121,7 @@ public class LexerTests {
         recognizeOperator("-", 0, Operator.OP.SUB);
         recognizeOperator("/", 0, Operator.OP.DIV);
         recognizeOperator("*", 0, Operator.OP.MUL);
+        recognizeOperator("%", 0, Operator.OP.MOD);
         recognizeOperator("==", 0, Operator.OP.EQU);
         recognizeOperator("!=", 0, Operator.OP.NOTEQU);
         recognizeOperator(">=", 0, Operator.OP.GREATEREQU);
