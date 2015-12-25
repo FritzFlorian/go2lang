@@ -46,7 +46,7 @@ public class CodeGenerator implements Opcodes{
      * @throws UndeclearedIdentifier
      */
     public void generateClassFile(String targetPath) throws UndeclearedIdentifier {
-        String target = targetPath + className + ".class";
+        String target = targetPath + "/" + className + ".class";
 
         try {
             File file = new File(target);
@@ -309,7 +309,7 @@ public class CodeGenerator implements Opcodes{
      * @throws UndeclearedIdentifier
      */
     private void visitRunMethod(ClassWriter cw) throws UndeclearedIdentifier {
-        int maxStackHeight = 4;
+        int maxStackHeight = 1;
         int tempStackHeight;
 
         MethodVisitor mv = cw.visitMethod(ACC_PUBLIC, "run", "()V", null, null);
@@ -346,7 +346,7 @@ public class CodeGenerator implements Opcodes{
      * @throws UndeclearedIdentifier
      */
     private int generateScopeNodeCode(MethodVisitor mv, ScopeNode scopeNode) throws UndeclearedIdentifier {
-        int localStackHeight = 4;
+        int localStackHeight = 3;
         int tempStackHeight = 0;
 
         //Generate the current scope
@@ -460,15 +460,17 @@ public class CodeGenerator implements Opcodes{
             case GO:
                 mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
                 mv.visitInsn(SWAP);
-                mv.visitMethodInsn(INVOKEVIRTUAL, "com/gotwo/codegen/Scope", "mergeForRun","(Lcom/gotwo/codegen/Scope;)V", false);
+                mv.visitMethodInsn(INVOKEVIRTUAL, "com/gotwo/codegen/Scope", "mergeForGoTo","(Lcom/gotwo/codegen/Scope;)V", false);
                 break;
             case RUN:
                 mv.visitInsn(POP);
                 break;
             case WALK:
+                mv.visitInsn(POP);
                 //TODO: Implement walk to
                 break;
             case SPRINT:
+                mv.visitInsn(POP);
                 //TODO: Implement sprint to
                 //Do not take any variables with us...
                 //Forget about the old scope

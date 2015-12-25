@@ -57,6 +57,12 @@ public class ScopeNode extends Node {
 
     public void addFirstChildNode(Node newChild) {
         childNodes.add(0, newChild);
+        for(Node child : childNodes) {
+            if(child instanceof  LabelNode) {
+                LabelNode labelNode = (LabelNode)child;
+                labelNode.getLabelDeclaration().incrementPosition();
+            }
+        }
     }
 
     public List<Node> getChildNodes() {
@@ -100,5 +106,23 @@ public class ScopeNode extends Node {
 
     public ScopeNode getParentScope() {
         return parentScope;
+    }
+
+
+    //TODO: better hash code and equals implementations
+    @Override
+    public boolean equals(Object other) {
+        if(!other.getClass().equals(this.getClass())) {
+            return false;
+        }
+
+        ScopeNode otherNode = (ScopeNode) other;
+
+        return otherNode.id == this.id;
+    }
+
+    @Override
+    public int hashCode() {
+        return id;
     }
 }

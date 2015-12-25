@@ -55,4 +55,52 @@ public class LabelDeclaration {
 
         return label;
     }
+
+    public void incrementPosition() {
+        position++;
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if(!this.getClass().equals(other.getClass())) {
+            return false;
+        }
+
+        LabelDeclaration otherLabelDeclaration = (LabelDeclaration) other;
+
+        if(otherLabelDeclaration.name != this.name && !otherLabelDeclaration.name.equals(this.name)) {
+            return false;
+        }
+        if(otherLabelDeclaration.scope != this.scope && !otherLabelDeclaration.scope.equals(this.getScope())) {
+            return false;
+        }
+        if(otherLabelDeclaration.id != this.id) {
+            return false;
+        }
+        if(otherLabelDeclaration.position != this.position) {
+            return false;
+        }
+        if(otherLabelDeclaration.declared != this.declared) {
+            return false;
+        }
+
+
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        int code = 0;
+        if(name != null) {
+            code += name.hashCode();
+        }
+        if(scope != null) {
+            code += scope.hashCode();
+        }
+        code += id;
+        code += position;
+        code += declared ? 1 : 0;
+
+        return code;
+    }
 }

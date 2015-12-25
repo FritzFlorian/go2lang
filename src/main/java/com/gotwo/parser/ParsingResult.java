@@ -1,7 +1,5 @@
 package com.gotwo.parser;
 
-import com.gotwo.lexer.Token;
-
 import java.util.List;
 import java.util.Map;
 

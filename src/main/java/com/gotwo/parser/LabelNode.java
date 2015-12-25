@@ -15,4 +15,13 @@ public class LabelNode extends Node {
         return labelDeclaration;
     }
 
+    @Override
+    public boolean equals(Object other) {
+        if(!other.getClass().equals(this.getClass())) {
+            return false;
+        }
+        LabelNode otherLabel = (LabelNode) other;
+        return this.labelDeclaration.equals(otherLabel.labelDeclaration);
+    }
+
 }

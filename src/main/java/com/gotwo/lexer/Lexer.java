@@ -14,7 +14,6 @@ import java.util.List;
  * Created by florian on 27/11/15.
  *
  * A lexer for the go2 language.
- * Version 0.1 is quite simple and only consists of simple tokens.
  */
 public class Lexer {
     private BufferedReader reader;
@@ -47,6 +46,7 @@ public class Lexer {
                 throw new LexerException(e.getMessage() + " in line " + lineNr);
             }
         }
+        tokenList.add(new Newline()); //Each statement has to be "closed" with a newline
         return  tokenList;
     }
 

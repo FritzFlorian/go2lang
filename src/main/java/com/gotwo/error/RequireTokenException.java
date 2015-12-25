@@ -4,8 +4,12 @@ import com.gotwo.lexer.Token;
 
 /**
  * Created by florian on 04/12/15.
+ *
+ * Thrown if there is an unexpected token while parsing.
+ * Can contain an expected token or null if different tokens would be possible.
+ * Always contains the actual found token.
  */
-public class RequireTokenException extends Exception {
+public class RequireTokenException extends CompilerException {
     private Token[] tokens;
 
     public RequireTokenException(Token... tokens) {

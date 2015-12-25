@@ -46,7 +46,7 @@ public class Parser {
 
         if(targetLabels.containsKey("start")) {
             //Generate start goto
-            root.addFirstChildNode(new GoToLabelNode(GoToLabelNode.SPEED.SPRINT, targetLabels.get("start")));
+            root.addFirstChildNode(new GoToLabelNode(GoToLabelNode.SPEED.RUN, targetLabels.get("start")));
         }
 
         return new ParsingResult(root, labelList, targetScopes, targetLabels, context, scopeNodes);
@@ -150,8 +150,8 @@ public class Parser {
             case RUN:
                 handleGoToNode(GoToLabelNode.SPEED.RUN, currentScope);
                 break;
-            case SPRINT:
-                handleGoToNode(GoToLabelNode.SPEED.SPRINT, currentScope);
+            case GO:
+                handleGoToNode(GoToLabelNode.SPEED.GO, currentScope);
                 break;
 
             case IF:

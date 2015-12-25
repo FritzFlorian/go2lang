@@ -22,4 +22,21 @@ public class GoToLabelNode extends Node {
     public SPEED getSpeed() {
         return speed;
     }
+
+    @Override
+    public boolean equals(Object other) {
+        if(!other.getClass().equals(this.getClass())) {
+            return false;
+        }
+
+        GoToLabelNode otherNode = (GoToLabelNode) other;
+        if(otherNode.target != this.target && !otherNode.target.equals(this.target)) {
+            return false;
+        }
+        if(otherNode.speed != this.speed) {
+            return false;
+        }
+
+        return true;
+    }
 }

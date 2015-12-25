@@ -3,9 +3,9 @@ package com.gotwo.error;
 /**
  * Created by florian on 27/11/15.
  *
- * Exception thrown by the lexer or compiler.
+ * Expection thrown if there was an unexpected character read by the lexer.
  */
-public class LexerException extends Exception {
+public class LexerException extends CompilerException {
     public static LexerException newEndOfLineException(String expected) {
         return new LexerException("Reached end of line, expected " + expected);
     }
