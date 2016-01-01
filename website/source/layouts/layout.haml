@@ -1,0 +1,37 @@
+!!! 5
+
+%html
+   %head
+      %meta{:charset => "utf-8"}
+
+      %title= current_page.data.title || "go2lang"
+
+      %link{:href => "//fonts.googleapis.com/css?family=Lato:300,400", :rel => "stylesheet"}
+      %link{:href => "/stylesheets/site.css", :rel => "stylesheet"}
+      %link{:href => "/images/favicon.png", :rel => "icon"}
+    
+
+%body
+   #header
+      .container
+         %a{:class => "logo", :href => "/", :id => "long"}
+            The Go2 Programming Language
+         %a{:class => "logo", :href => "/", :id => "short"}
+            Go2
+
+         #menu
+            %a{:class => "button", :href => ""}
+               Home
+            %a{:class => "button", :href => ""}
+               Learn
+            %a{:class => "button", :href => ""}
+               About
+   #content
+      .container= yield
+   .clear
+   #footer
+      %br
+      %br
+      %a{:href => ""}
+         Impressum
+    
