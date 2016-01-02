@@ -9,15 +9,22 @@ package com.gotwo.lexer;
  * e.g. an INTEGER may contain its numeric value.
  */
 public class Token {
-    public enum TYPE {NEWLINE, OPERATOR, ASSIGNMENT, INTEGER, IDENTIFIER, KEYWORD, BRACKET}
+    public enum TYPE {NEWLINE, OPERATOR, ASSIGNMENT, INTEGER, IDENTIFIER, KEYWORD, BRACKET, UNKNOWN}
     protected TYPE type;
 
-    public Token(TYPE type) {
+    private int line;
+
+    public Token(TYPE type, int line) {
         this.type = type;
+        this.line = line;
     }
 
     public TYPE getType() {
         return type;
+    }
+
+    public int getLine() {
+        return line;
     }
 
     @Override

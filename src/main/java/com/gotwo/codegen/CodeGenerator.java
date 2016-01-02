@@ -27,6 +27,8 @@ public class CodeGenerator implements Opcodes{
     private static final String METHOD_INIT_SCOPE_PARAMETERS = "(ILcom/gotwo/codegen/Scope;)Lcom/gotwo/codegen/Scope;";
     //The position of the current_scope local variable in the run method
     private static final int CURRENT_SCOPE = 1;
+    //The full name of the base class
+    private static final String BASE_CLASS = "com/gotwo/codegen/GoTwoBase";
 
     private ParsingResult parsingResult;
 
@@ -103,8 +105,8 @@ public class CodeGenerator implements Opcodes{
      */
     private void visitFields(ClassWriter cw) {
         //Add an currentScope attribute that is used during execution of the code
-        FieldVisitor fv = cw.visitField(ACC_PRIVATE, "currentScope", "Lcom/gotwo/codegen/Scope;", null, null);
-        fv.visitEnd();
+        //FieldVisitor fv = cw.visitField(ACC_PRIVATE, "currentScope", "Lcom/gotwo/codegen/Scope;", null, null);
+        //fv.visitEnd();
     }
 
     /**
@@ -117,7 +119,7 @@ public class CodeGenerator implements Opcodes{
                 ACC_PUBLIC + ACC_SUPER,
                 className,
                 null,
-                "java/lang/Object",
+                BASE_CLASS,
                 null);
     }
 
@@ -133,7 +135,7 @@ public class CodeGenerator implements Opcodes{
 
         mv.visitVarInsn(ALOAD, 0);
         mv.visitMethodInsn(INVOKESPECIAL,
-                "java/lang/Object",
+                BASE_CLASS,
                 "<init>",
                 "()V",
                 false);
@@ -175,7 +177,7 @@ public class CodeGenerator implements Opcodes{
         mv.visitMethodInsn(INVOKESPECIAL, className, "<init>", "()V", false); //Simple call to default constructor
 
         //Call run on it
-        mv.visitMethodInsn(INVOKEVIRTUAL, className, "run", "()V", false);
+        mv.visitMethodInsn(INVOKEVIRTUAL, className, "start", "()V", false);
 
         //Return from the main method
         mv.visitInsn(RETURN);
@@ -382,8 +384,12 @@ public class CodeGenerator implements Opcodes{
                     tempStackHeight = generateGoTo(mv, (GoToLabelNode) node, scopeNode);
                     break;
 
-                case GOTOSPECIAL:
-                    tempStackHeight = generateGoToSpecial(mv, (GoToSpecialNode) node);
+                case GOTOFILE:
+                    tempStackHeight = generateGoToFile(mv, (GoToFileNode) node);
+                    break;
+
+                case GOBACK:
+                    localStackHeight = generateGoBack(mv, scopeNode, (GoBackNode) node);
                     break;
             }
 
@@ -396,25 +402,72 @@ public class CodeGenerator implements Opcodes{
     }
 
     /**
-     * Generates code for specialized labels.
-     * This is used for input/output right now, but
-     * will be replaced with a more flexible mechanism
-     * in the future.
+     * Generates code for external go tos.
+     * This are all jump commands that are issued into an external class.
      *
      * @param mv The current MethodVisitor instance.
-     * @param labelNode The GoToSpecialNode to generate code for.
+     * @param goToNode The GoToFileNode to generate code for.
      * @return The maximum used stack height
      * @throws UndeclearedIdentifier
      */
-    private int generateGoToSpecial(MethodVisitor mv, GoToSpecialNode labelNode) throws UndeclearedIdentifier {
-        switch (labelNode.getSpecial()) {
-            case CONSOLE:
-                mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
-                mv.visitMethodInsn(INVOKEVIRTUAL, "com/gotwo/codegen/Scope", "printRun", "()V", false);
-                return 1;
+    private int generateGoToFile(MethodVisitor mv, GoToFileNode goToNode) throws UndeclearedIdentifier {
+        //Save the current scope from the local variable
+        mv.visitVarInsn(ALOAD, 0);
+        mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
+        mv.visitFieldInsn(PUTFIELD, className, "currentScope", "Lcom/gotwo/codegen/Scope;");
+
+        mv.visitVarInsn(ALOAD, 0);
+        mv.visitFieldInsn(GETSTATIC, "com/gotwo/codegen/SPEED", goToNode.getSpeed().toString(), "Lcom/gotwo/codegen/SPEED;");
+        mv.visitFieldInsn(PUTFIELD, className, "targetSpeed", "Lcom/gotwo/codegen/SPEED;");
+
+        mv.visitVarInsn(ALOAD, 0);
+        mv.visitLdcInsn(goToNode.getTargetFile());
+        mv.visitFieldInsn(PUTFIELD, className, "targetFile", "Ljava/lang/String;");
+
+        mv.visitVarInsn(ALOAD, 0);
+        mv.visitLdcInsn(goToNode.getTargetLabel());
+        mv.visitFieldInsn(PUTFIELD, className, "targetLabel", "Ljava/lang/String;");
+
+        mv.visitInsn(RETURN);
+
+        return 2;
+    }
+
+    /**
+     * Generates code for an go back movement.
+     *
+     * @param mv The current MethodVisitor instance.
+     * @param goBackNode The GoBackNode to generate code for.
+     * @return The maximum used stack height
+     * @throws UndeclearedIdentifier
+     */
+    private int generateGoBack(MethodVisitor mv, ScopeNode currentScope, GoBackNode goBackNode) throws UndeclearedIdentifier {
+        int localStackHeight = 3, tempStackHeight;
+
+        for(LabelNode labelNode : currentScope.getLabelNodes()) {
+            List<LabelDeclaration> labelDeclarations = parsingResult.getGoBackLabels().get(labelNode.getLabelDeclaration().getName());
+            if(labelDeclarations != null) {
+                for(LabelDeclaration labelDeclaration : labelDeclarations) {
+
+                    //Get the old scope id
+                    mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
+                    mv.visitFieldInsn(GETFIELD, "com/gotwo/codegen/Scope", "lastLabel", "I");
+                    mv.visitLdcInsn(getBackLabelId(labelDeclaration));
+                    mv.visitInsn(ISUB);
+                    Label jumpOverLabel = new Label();
+                    mv.visitJumpInsn(IFNE, jumpOverLabel);
+
+                    tempStackHeight = generateGoTo(mv, currentScope, labelDeclaration, goBackNode.getSpeed(), -1);
+                    if(tempStackHeight > localStackHeight) {
+                        localStackHeight = tempStackHeight;
+                    }
+
+                    mv.visitLabel(jumpOverLabel);
+                }
+            }
         }
 
-        throw new UndeclearedIdentifier(labelNode.getSpeed()  + " TO " + labelNode.getSpecial());
+        return localStackHeight;
     }
 
     /**
@@ -429,12 +482,36 @@ public class CodeGenerator implements Opcodes{
      * @return The maximum used stack height
      */
     private int generateGoTo(MethodVisitor mv, GoToLabelNode labelNode, ScopeNode currentScope) {
+        return generateGoTo(mv, currentScope, labelNode.getTarget(), labelNode.getSpeed(),
+                             getBackLabelId(labelNode.getBackLabel()));
+    }
+
+    private int getBackLabelId(LabelDeclaration labelDeclaration) {
+        if(labelDeclaration == null) {
+            return -1;
+        }
+        return Integer.parseInt(labelDeclaration.getName().replaceAll("#", ""));
+    }
+
+    /**
+     * Generates all kinds of go to statements.
+     * This takes into consideration at which speed the go
+     * to should happen and generates code for the appropriate
+     * scope manipulations needed.
+     *
+     * @param mv The current MethodVisitor instance.
+     * @param targetLabel The targeted label
+     * @param speed The speed to be used in the statement
+     * @param currentScope The scope that contains the go to statement
+     * @return The maximum used stack height
+     */
+    private int generateGoTo(MethodVisitor mv, ScopeNode currentScope, LabelDeclaration targetLabel, SPEED speed, int oldLabelId) {
         // Step one, find the common base scope.
         // This is the level that we need to build up on.
         // Try to be as accurate as possible at compile time,
         // so lets search the id of the target scope.
         ScopeNode currentStack = currentScope;
-        ScopeNode otherStack = labelNode.getTarget().getScope();
+        ScopeNode otherStack = targetLabel.getScope();
         while(!currentStack.equals(otherStack)) { //Traverse down as long as the two scopes are not the equal base
             if(currentStack.getHeight() <= otherStack.getHeight()) {
                 otherStack = otherStack.getParentScope(); // Go one down
@@ -452,11 +529,11 @@ public class CodeGenerator implements Opcodes{
         mv.visitVarInsn(ASTORE, CURRENT_SCOPE); //Save it
         // The stack now holds only the "old" current scope
 
-        if(labelNode.getTarget().getScope().getHeight() > currentStack.getHeight()) {
-            generateNewScopeStack(mv, currentStack.getId(), labelNode.getTarget().getScope());
+        if(targetLabel.getScope().getHeight() > currentStack.getHeight()) {
+            generateNewScopeStack(mv, currentStack.getId(), targetLabel.getScope());
         }
         // The new current scope is now stored in CURRENT_SCOPE
-        switch (labelNode.getSpeed()) {
+        switch (speed) {
             case GO:
                 mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
                 mv.visitInsn(SWAP);
@@ -477,8 +554,12 @@ public class CodeGenerator implements Opcodes{
                 break;
         }
 
+        //Save the old scope id
+        mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
+        mv.visitLdcInsn(oldLabelId);
+        mv.visitFieldInsn(PUTFIELD, "com/gotwo/codegen/Scope", "lastLabel", "I");
 
-        mv.visitJumpInsn(GOTO ,labelNode.getTarget().getLabel());
+        mv.visitJumpInsn(GOTO ,targetLabel.getLabel());
 
         return 4;
     }
@@ -495,6 +576,8 @@ public class CodeGenerator implements Opcodes{
     private void generateNewScopeStack(MethodVisitor mv, int commonBaseId, ScopeNode targetScope) {
         if(targetScope.getId() != commonBaseId) {
             generateNewScopeStack(mv, commonBaseId, targetScope.getParentScope()); //Go down and build our new scope from bottom to the top
+        } else {
+            return;
         }
 
         //This should update the current scope one layer up a time
@@ -635,7 +718,6 @@ public class CodeGenerator implements Opcodes{
                 case GREATER:
                 case LESSEQU:
                 case GREATEREQU:
-                case NOT:
                     mv.visitInsn(ISUB);
                     mv.visitInsn(ICONST_1); //Default is true
                     mv.visitInsn(SWAP);
@@ -669,6 +751,26 @@ public class CodeGenerator implements Opcodes{
 
                     break;
             }
+        } else if(expressionNode instanceof ExpressionNode.UnarySubExpressionNode) {
+            ExpressionNode.UnarySubExpressionNode unarySubExpressionNode = (ExpressionNode.UnarySubExpressionNode)expressionNode;
+
+            localStackHeight = generateExpression(mv, unarySubExpressionNode.getExpression(), stackDepth);
+
+            switch (unarySubExpressionNode.getOperator().getOp()) {
+                case NOT:
+                    mv.visitInsn(ICONST_1); //Default is true
+                    mv.visitInsn(SWAP);
+
+                    Label trueLabel = new Label();
+                    mv.visitJumpInsn(IFEQ, trueLabel);
+
+                    mv.visitInsn(POP);
+                    mv.visitInsn(ICONST_0); // Set result to false
+
+                    mv.visitLabel(trueLabel); //Jump over "set false" instructions
+                    break;
+            }
+
         } else if(expressionNode instanceof ExpressionNode.IntExpressionNode){
             ExpressionNode.IntExpressionNode intExpressionNode = (ExpressionNode.IntExpressionNode)expressionNode;
             mv.visitVarInsn(ALOAD, CURRENT_SCOPE);

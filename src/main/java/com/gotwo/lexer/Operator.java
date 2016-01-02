@@ -12,8 +12,8 @@ public class Operator extends Token {
     public enum OP {ADD, SUB, DIV, MUL, MOD, EQU, NOTEQU, LESS, GREATER, LESSEQU, GREATEREQU, NOT}
     private OP op;
 
-    public Operator(OP op) {
-        super(TYPE.OPERATOR);
+    public Operator(OP op, int line) {
+        super(TYPE.OPERATOR, line);
         this.op = op;
     }
 

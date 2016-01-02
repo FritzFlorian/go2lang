@@ -1,16 +1,15 @@
 package com.gotwo.parser;
 
+import com.gotwo.codegen.SPEED;
 import com.gotwo.error.DuplicatedIdentifier;
 import com.gotwo.error.IllegalTokenException;
 import com.gotwo.error.RequireTokenException;
 import com.gotwo.error.UndeclearedIdentifier;
 import com.gotwo.lexer.*;
 import com.gotwo.lexer.Integer;
+import org.objectweb.asm.Label;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Created by florian on 03/12/15.
@@ -24,6 +23,7 @@ public class Parser {
     private List<LabelDeclaration> labelList;
     private Map<LabelDeclaration, ScopeNode> targetScopes;
     private Map<String, LabelDeclaration> targetLabels;
+    private Map<String, List<LabelDeclaration>> goBackLabels;
     private List<ScopeNode> scopeNodes;
     private ParsingContext context;
 
@@ -34,10 +34,11 @@ public class Parser {
         this.scopeNodes = new ArrayList<>();
         this.targetScopes = new HashMap<>();
         this.targetLabels = new HashMap<>();
+        this.goBackLabels = new HashMap<>();
 
         //Artificially add an end token to make parsing the
         //global outer scope easy
-        tokenList.add(new Keyword(Keyword.KEY.END));
+        tokenList.add(new Keyword(Keyword.KEY.END, -1));
     }
 
     public ParsingResult parseTokens() throws RequireTokenException, IllegalTokenException, UndeclearedIdentifier, DuplicatedIdentifier {
@@ -46,10 +47,10 @@ public class Parser {
 
         if(targetLabels.containsKey("start")) {
             //Generate start goto
-            root.addFirstChildNode(new GoToLabelNode(GoToLabelNode.SPEED.RUN, targetLabels.get("start")));
+            root.addFirstChildNode(new GoToLabelNode(SPEED.RUN, targetLabels.get("start")));
         }
 
-        return new ParsingResult(root, labelList, targetScopes, targetLabels, context, scopeNodes);
+        return new ParsingResult(root, labelList, targetScopes, targetLabels, context, scopeNodes, goBackLabels);
     }
 
     /**
@@ -132,7 +133,7 @@ public class Parser {
 
             case LABEL:
                 //Read the label into our jump table
-                handleLabelDeclaration(currentScope);
+                handleLabelDeclaration(currentScope, keyword);
                 break;
 
             case SCOPE:
@@ -141,17 +142,17 @@ public class Parser {
                 currentScope.addChildNode(subScope);
                 Keyword innerEnd = (Keyword)requireToken(Token.TYPE.KEYWORD);
                 if(innerEnd.getKey() != Keyword.KEY.END) {
-                    throw new IllegalTokenException(new Keyword(Keyword.KEY.END), innerEnd);
+                    throw new IllegalTokenException(new Keyword(Keyword.KEY.END, innerEnd.getLine()), innerEnd);
                 }
                 //Finished parsing the inner scope, remove the end token
                 tokenList.remove(0);
                 break;
 
             case RUN:
-                handleGoToNode(GoToLabelNode.SPEED.RUN, currentScope);
+                handleGoToNode(SPEED.RUN, currentScope);
                 break;
             case GO:
-                handleGoToNode(GoToLabelNode.SPEED.GO, currentScope);
+                handleGoToNode(SPEED.GO, currentScope);
                 break;
 
             case IF:
@@ -163,7 +164,7 @@ public class Parser {
         }
     }
 
-    private void handleGoToNode(GoToLabelNode.SPEED speed, ScopeNode currentScope) throws RequireTokenException, IllegalTokenException, DuplicatedIdentifier {
+    private void handleGoToNode(SPEED speed, ScopeNode currentScope) throws RequireTokenException, IllegalTokenException, DuplicatedIdentifier {
         Keyword keyword = (Keyword)requireToken(Token.TYPE.KEYWORD);
 
         switch (keyword.getKey()) {
@@ -171,40 +172,67 @@ public class Parser {
                 tokenList.remove(0);
                 handleGoToLabelNode(speed, currentScope);
                 break;
+            case BACK:
+                tokenList.remove(0);
+                handleGoBackNode(speed, currentScope);
+                break;
             default:
-                throw new IllegalTokenException(new Keyword(Keyword.KEY.TO), keyword);
+                throw new IllegalTokenException(new Keyword(Keyword.KEY.TO, keyword.getLine()), keyword);
         }
     }
 
-    private void handleGoToLabelNode(GoToLabelNode.SPEED speed, ScopeNode currentScope) throws RequireTokenException, IllegalTokenException, DuplicatedIdentifier {
+    private void handleGoToLabelNode(SPEED speed, ScopeNode currentScope) throws RequireTokenException, IllegalTokenException, DuplicatedIdentifier {
         Token currentToken = requireToken();
         if(currentToken.getType() == Token.TYPE.KEYWORD) {
             //Special case for language keywords/bindings
             //We will replace this with runtime calls later, but it should be good for now
             tokenList.remove(0);
-            handleGoToSpecial(speed, currentScope, (Keyword)currentToken);
+            handleGoToFile(speed, currentScope, (Keyword)currentToken);
             return;
         }
 
-        Identifier identifier = (Identifier)requireToken(Token.TYPE.IDENTIFIER);
-        tokenList.remove(0);
+        String fullLabelName = requireFullLabelName();
 
-        LabelDeclaration targetLabel = targetLabels.get(identifier.getName());
+        LabelDeclaration targetLabel = targetLabels.get(fullLabelName);
         if(targetLabel == null) {
-            targetLabel = declareLabel(identifier.getName(), currentScope, false);
+            targetLabel = declareLabel(fullLabelName, currentScope, false, currentToken);
         }
 
-        currentScope.addChildNode(new GoToLabelNode(speed, targetLabel));
+        GoToLabelNode goToLabelNode = new GoToLabelNode(speed, targetLabel);
+        currentScope.addChildNode(goToLabelNode);
+
+        goToLabelNode.setBackLabel(handleLocalGoBackLabel(currentScope, targetLabel, currentToken));
     }
 
-    private void handleGoToSpecial(GoToLabelNode.SPEED speed, ScopeNode currentScope, Keyword keyword) throws IllegalTokenException {
+    private void handleGoBackNode(SPEED speed, ScopeNode currentScope) throws RequireTokenException, IllegalTokenException, DuplicatedIdentifier {
+        currentScope.addChildNode(new GoBackNode(speed));
+    }
+
+
+    private LabelDeclaration handleLocalGoBackLabel(ScopeNode currentScope, LabelDeclaration targetLabel, Token currentToken) throws DuplicatedIdentifier {
+        //Go back semantic, add a jump back label & keep track of possible go backs
+        LabelDeclaration backLabelDeclaration = declareLabel("#" + currentToken.getLine() + "#", currentScope, true, currentToken);
+        if(!goBackLabels.containsKey(targetLabel.getName())) {
+            goBackLabels.put(targetLabel.getName(), new LinkedList<>());
+        }
+        goBackLabels.get(targetLabel.getName()).add(backLabelDeclaration);
+        currentScope.addChildNode(new LabelNode(backLabelDeclaration));
+
+        return backLabelDeclaration;
+    }
+
+    private void handleGoToFile(SPEED speed, ScopeNode currentScope, Keyword keyword) throws IllegalTokenException, RequireTokenException {
         switch (keyword.getKey()) {
-            case CONSOLE:
-                currentScope.addChildNode(new GoToSpecialNode(speed, GoToSpecialNode.SPECIAL.CONSOLE));
+            case OTHER:
+                Identifier identifier = (Identifier)requireToken(Token.TYPE.IDENTIFIER);
+                tokenList.remove(0);
+                String fullLabelName = requireFullLabelName();
+                currentScope.addChildNode(new GoToFileNode(speed, identifier.getName(),fullLabelName));
                 break;
             default:
                 throw new IllegalTokenException(null, keyword);
         }
+        //TODO: cross file go back mechanic
     }
 
     /**
@@ -215,7 +243,7 @@ public class Parser {
         IntegerDeclaration integerDeclaration = currentScope.getIntegerDeclaration(identifier.getName());
 
         if(integerDeclaration == null) {
-            throw new UndeclearedIdentifier(identifier.getName());
+            throw new UndeclearedIdentifier(identifier.getName(), identifier);
         }
         requireToken(Token.TYPE.ASSIGNMENT);
         tokenList.remove(0);
@@ -226,9 +254,10 @@ public class Parser {
     private ExpressionNode handleExpression(ScopeNode currentScope) throws IllegalTokenException, RequireTokenException, UndeclearedIdentifier {
         /**
          * Operator Precedence:
+         * 0) !
          * 1) *, /
          * 2) +, -
-         * 3) <=, >=, ==, !=     NOT IMPLEMENTED
+         * 3) <=, >=, ==, !=
          */
 
         ExpressionNode left = handleSum(currentScope);
@@ -249,13 +278,6 @@ public class Parser {
     }
 
     private ExpressionNode handleSum(ScopeNode currentScope) throws IllegalTokenException, RequireTokenException, UndeclearedIdentifier {
-        /**
-         * Operator Precedence:
-         * 1) *, /
-         * 2) +, -
-         * 3) <=, >=, ==, !=     NOT IMPLEMENTED
-         */
-
         ExpressionNode left = handleTerm(currentScope);
 
         Token currentToken = tokenList.get(0);
@@ -272,7 +294,7 @@ public class Parser {
     }
 
     private ExpressionNode handleTerm(ScopeNode currentScope) throws RequireTokenException, UndeclearedIdentifier, IllegalTokenException {
-        ExpressionNode left = handleFactor(currentScope);
+        ExpressionNode left = handleUnary(currentScope);
 
         Token currentToken = tokenList.get(0);
         if(currentToken.getType() == Token.TYPE.OPERATOR) {
@@ -285,6 +307,20 @@ public class Parser {
         }
 
         return left;
+    }
+
+    private ExpressionNode handleUnary(ScopeNode currentScope) throws RequireTokenException, UndeclearedIdentifier, IllegalTokenException {
+        Token currentToken = tokenList.get(0);
+        if(currentToken.getType() == Token.TYPE.OPERATOR) {
+            Operator operator = (Operator)currentToken;
+
+            if(operator.getOp() == Operator.OP.NOT) {
+                tokenList.remove(0);
+                return new ExpressionNode.UnarySubExpressionNode(operator, handleUnary(currentScope));
+            }
+        }
+
+        return handleFactor(currentScope);
     }
 
     private ExpressionNode handleFactor(ScopeNode currentScope) throws UndeclearedIdentifier, IllegalTokenException, RequireTokenException {
@@ -300,7 +336,7 @@ public class Parser {
                 Identifier identifier = (Identifier)currentToken;
                 IntegerDeclaration integerDeclaration = currentScope.getIntegerDeclaration(identifier.getName());
                 if(integerDeclaration == null) {
-                    throw new UndeclearedIdentifier(identifier.getName());
+                    throw new UndeclearedIdentifier(identifier.getName(), identifier);
                 }
                 tokenList.remove(0);
                 return new ExpressionNode.IntExpressionNode(integerDeclaration);
@@ -308,7 +344,7 @@ public class Parser {
             case BRACKET:
                 Bracket bracket = (Bracket)currentToken;
                 if(bracket.getBracket() != Bracket.BRACKET.OPEN) {
-                    throw new IllegalTokenException(new Bracket(Bracket.BRACKET.OPEN), currentToken);
+                    throw new IllegalTokenException(new Bracket(Bracket.BRACKET.OPEN, currentToken.getLine()), currentToken);
                 }
                 tokenList.remove(0);
                 //Read the inner term
@@ -317,7 +353,7 @@ public class Parser {
                 currentToken = requireToken(Token.TYPE.BRACKET);
                 bracket = (Bracket)currentToken;
                 if(bracket.getBracket() != Bracket.BRACKET.CLOSE) {
-                    throw new IllegalTokenException(new Bracket(Bracket.BRACKET.CLOSE), currentToken);
+                    throw new IllegalTokenException(new Bracket(Bracket.BRACKET.CLOSE, currentToken.getLine()), currentToken);
                 }
                 tokenList.remove(0);
                 return result;
@@ -339,7 +375,7 @@ public class Parser {
         //There has to be an END for valid syntax
         Token currentToken = tokenList.get(0);
         if(currentToken.getType() != Token.TYPE.KEYWORD) {
-            throw new IllegalTokenException(new Keyword(Keyword.KEY.END), currentToken);
+            throw new IllegalTokenException(new Keyword(Keyword.KEY.END, currentToken.getLine()), currentToken);
         }
         //We are happy, take the token from the list
         tokenList.remove(0);
@@ -355,27 +391,34 @@ public class Parser {
      * @throws IllegalTokenException
      * @throws RequireTokenException
      */
-    private void handleLabelDeclaration(ScopeNode currentScope) throws IllegalTokenException, RequireTokenException, DuplicatedIdentifier {
-        Token currentToken = requireToken();
-        if(currentToken.getType() != Token.TYPE.IDENTIFIER) {
-            throw new IllegalTokenException(new Identifier("ID"), currentToken);
-        }
-        tokenList.remove(0);
+    private void handleLabelDeclaration(ScopeNode currentScope, Token currentToken) throws IllegalTokenException, RequireTokenException, DuplicatedIdentifier {
+        String fullLabelName = requireFullLabelName();
 
-        Identifier identifier = (Identifier)currentToken;
-        //Add the identifier to our symbol list
-
-
-        currentScope.addChildNode(new LabelNode(declareLabel(identifier.getName(), currentScope, true)));
+        currentScope.addChildNode(new LabelNode(declareLabel(fullLabelName, currentScope, true, currentToken)));
     }
 
-    private LabelDeclaration declareLabel(String name, ScopeNode currentScope, boolean newLabel) throws DuplicatedIdentifier {
+    private String requireFullLabelName() throws RequireTokenException, IllegalTokenException {
+        Identifier identifier = (Identifier)requireToken(Token.TYPE.IDENTIFIER);
+        tokenList.remove(0);
+
+        String fullLabelName = identifier.getName();
+        Token currentToken;
+        while((currentToken = tokenList.get(0)).getType() == Token.TYPE.IDENTIFIER) {
+            identifier = (Identifier)currentToken;
+            tokenList.remove(0);
+            fullLabelName += " " + identifier.getName();
+        }
+
+        return fullLabelName;
+    }
+
+    private LabelDeclaration declareLabel(String name, ScopeNode currentScope, boolean newLabel, Token currentToken) throws DuplicatedIdentifier {
         LabelDeclaration labelDeclaration = targetLabels.get(name);
 
         if(labelDeclaration != null) {
             if(newLabel) {
                 if(labelDeclaration.isDeclared()) {
-                    throw new DuplicatedIdentifier(name);
+                    throw new DuplicatedIdentifier(name, currentToken);
                 } else {
                     labelDeclaration.markAsDeclared(currentScope);
                 }
@@ -410,24 +453,24 @@ public class Parser {
         //This gives us: INT name = constant-value
         Token currentToken = requireToken();
         if(currentToken.getType() != Token.TYPE.IDENTIFIER) {
-            throw new IllegalTokenException(new Assignment(), currentToken);
+            throw new IllegalTokenException(new Assignment(0), currentToken);
         }
         tokenList.remove(0);
         Identifier identifier = (Identifier)currentToken;
         currentToken = requireToken();
         if(currentToken.getType() != Token.TYPE.ASSIGNMENT) {
-            throw new IllegalTokenException(new Assignment(), currentToken);
+            throw new IllegalTokenException(new Assignment(0), currentToken);
         }
         tokenList.remove(0);
         currentToken = requireToken();
         if(currentToken.getType() != Token.TYPE.INTEGER) {
-            throw new IllegalTokenException(new Integer(0), currentToken);
+            throw new IllegalTokenException(new Integer(0, 0), currentToken);
         }
         tokenList.remove(0);
         Integer integer = (Integer)currentToken;
         //Save the integer to the symbol table
         if(currentScope.getLocalIntegerDeclaration(identifier.getName()) != null) {
-            throw new DuplicatedIdentifier(identifier.getName());
+            throw new DuplicatedIdentifier(identifier.getName(), identifier);
         }
         currentScope.addInteger(identifier.getName(), integer.getValue());
     }
@@ -463,7 +506,7 @@ public class Parser {
             throw new RequireTokenException();
         }
         if(token.getType() != type) {
-            throw new IllegalTokenException(new Token(type), token);
+            throw new IllegalTokenException(new Token(type, 0), token);
         }
         return token;
     }

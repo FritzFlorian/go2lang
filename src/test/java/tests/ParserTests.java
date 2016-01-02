@@ -1,5 +1,6 @@
 package tests;
 
+import com.gotwo.codegen.SPEED;
 import com.gotwo.error.*;
 import com.gotwo.lexer.Identifier;
 import com.gotwo.lexer.Keyword;
@@ -43,9 +44,9 @@ public class ParserTests {
     @Test
     public void shouldParseLabel() {
         List<Token> tokenList = new ArrayList<>(Arrays.asList(
-                new Keyword(Keyword.KEY.LABEL),
-                new Identifier("someLabel"),
-                new Newline()
+                new Keyword(Keyword.KEY.LABEL, 1),
+                new Identifier("someLabel", 1),
+                new Newline(1)
         ));
 
         try {
@@ -73,9 +74,9 @@ public class ParserTests {
     @Test
     public void shouldParseStartLabel() {
         List<Token> tokenList = new ArrayList<>(Arrays.asList(
-                new Keyword(Keyword.KEY.LABEL),
-                new Identifier("start"),
-                new Newline()
+                new Keyword(Keyword.KEY.LABEL, 1),
+                new Identifier("start", 1),
+                new Newline(1)
         ));
 
         try {
@@ -88,7 +89,7 @@ public class ParserTests {
             LabelDeclaration labelDeclaration = new LabelDeclaration("start",
                                                                      result.getRootScope(),
                                                                      1, 1, true);
-            assertEquals(new GoToLabelNode(GoToLabelNode.SPEED.RUN, labelDeclaration), result.getRootScope().getChildNodes().get(0));
+            assertEquals(new GoToLabelNode(SPEED.RUN, labelDeclaration), result.getRootScope().getChildNodes().get(0));
             assertEquals(new LabelNode(labelDeclaration), result.getRootScope().getChildNodes().get(1));
 
             assertEquals(labelDeclaration, result.getLabelList().get(0));

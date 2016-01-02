@@ -13,7 +13,7 @@ public class RequireTokenException extends CompilerException {
     private Token[] tokens;
 
     public RequireTokenException(Token... tokens) {
-        super("Require different token(list). Requiring " + tokens.length + " tokens to match expression.");
+        super("Require different token(list). Requiring " + tokens.length + " tokens to match expression.", null);
         this.tokens = tokens;
     }
 

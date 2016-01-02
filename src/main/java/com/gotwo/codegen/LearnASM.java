@@ -4,46 +4,26 @@ package com.gotwo.codegen;
 /**
  * Created by florian on 11/12/15.
  */
-public class LearnASM {
-
-    private Scope currentScope;
+public class LearnASM extends GoTwoBase{
 
     public static void main(String[] args) {
         LearnASM learn = new LearnASM();
-        learn.run();
+
+        learn.start();
     }
 
     public void run() {
-        currentScope = initScopeWithId(1, null);
-        System.out.println(currentScope);
-        Scope loc = currentScope;
-
-        int i = 315 * currentScope.getIntegerValue("test");
-        currentScope.setIntegerValue("name", i);
-        int j = 6431531;
-        i = i + j;
-    }
-
-    public void test() {
-        int i = 1;
-        int j = 6;
-
-        i = i % j;
-    }
-
-    public Scope initScopeWithId(int id, Scope logicalParent) {
-        Scope result = new Scope(logicalParent, id);
-
-        switch (id) {
-            case 1:
-                result.setLocalIntegerVariable("a", 10);
-                result.setLocalIntegerVariable("c", 1);
-                break;
-            case 2:
-                result.setLocalIntegerVariable("x", 3434);
-                break;
+        this.currentScope = null;
+        this.targetFile = null;
+        this.targetSpeed = null;
+        if(this.oldScope != null) {
+            oldScope.printRun();
+        } else {
+            System.out.println("No old scope given...");
         }
 
-        return result;
+        this.currentScope = oldScope;
+        this.targetFile = "com.gotwo.Dummy";
     }
+
 }

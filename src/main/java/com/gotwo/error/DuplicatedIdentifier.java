@@ -1,5 +1,7 @@
 package com.gotwo.error;
 
+import com.gotwo.lexer.Token;
+
 /**
  * Created by florian on 09/12/15.
  *
@@ -7,8 +9,8 @@ package com.gotwo.error;
  */
 public class DuplicatedIdentifier extends CompilerException {
 
-    public DuplicatedIdentifier(String name) {
-        super("Found duplicate identifier with name " + name + ".");
+    public DuplicatedIdentifier(String name, Token token) {
+        super("Found duplicate identifier with name " + name + ".", token);
     }
 
 }

@@ -1,13 +1,14 @@
 package com.gotwo.parser;
 
+import com.gotwo.codegen.SPEED;
+
 /**
  * Created by florian on 10/12/15.
  */
 public class GoToLabelNode extends Node {
-    public enum SPEED {GO, RUN, WALK, SPRINT}
-
     private LabelDeclaration target;
     private SPEED speed;
+    private LabelDeclaration backLabel;
 
     public GoToLabelNode(SPEED speed, LabelDeclaration target) {
         super(TYPE.GOTO);
@@ -38,5 +39,13 @@ public class GoToLabelNode extends Node {
         }
 
         return true;
+    }
+
+    public LabelDeclaration getBackLabel() {
+        return backLabel;
+    }
+
+    public void setBackLabel(LabelDeclaration backLabel) {
+        this.backLabel = backLabel;
     }
 }

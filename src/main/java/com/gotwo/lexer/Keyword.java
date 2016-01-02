@@ -7,11 +7,11 @@ package com.gotwo.lexer;
  * Used to determine when specific internal constructs start or end.
  */
 public class Keyword extends Token {
-    public enum KEY {IF, END, LABEL, SCOPE, INT, GO, TO, RUN, SPRINT, CONSOLE}
+    public enum KEY {IF, END, LABEL, SCOPE, INT, GO, TO, BACK, RUN, SPRINT, OTHER}
     private KEY key;
 
-    public Keyword(KEY key) {
-        super(TYPE.KEYWORD);
+    public Keyword(KEY key, int line) {
+        super(TYPE.KEYWORD, line);
         this.key = key;
     }
 
@@ -24,11 +24,11 @@ public class Keyword extends Token {
         return getKey().toString();
     }
 
-    public static Keyword getKeyword(String name) {
+    public static Keyword getKeyword(String name, int line) {
         KEY[] keys = KEY.values();
         for(KEY k : keys) {
             if(name.equalsIgnoreCase(k.toString())) {
-                return new Keyword(k);
+                return new Keyword(k, line);
             }
         }
 

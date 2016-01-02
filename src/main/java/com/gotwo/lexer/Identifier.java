@@ -9,8 +9,8 @@ package com.gotwo.lexer;
 public class Identifier extends Token {
     private String name;
 
-    public Identifier(String name) {
-        super(TYPE.IDENTIFIER);
+    public Identifier(String name, int line) {
+        super(TYPE.IDENTIFIER, line);
         this.name = name;
     }
 

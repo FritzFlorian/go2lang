@@ -38,6 +38,27 @@ public abstract class ExpressionNode extends Node {
     }
 
     /**
+     * An expression with an single sub node. This will be unary expressions
+     */
+    public static class UnarySubExpressionNode extends ExpressionNode {
+        private ExpressionNode expression;
+        private Operator operator;
+
+        public UnarySubExpressionNode(Operator operator, ExpressionNode expression) {
+            this.expression = expression;
+            this.operator = operator;
+        }
+
+        public Operator getOperator() {
+            return operator;
+        }
+
+        public ExpressionNode getExpression() {
+            return expression;
+        }
+    }
+
+    /**
      * An expression with an Fixed value.
      */
     public static class ConstIntExpressionNode extends ExpressionNode {

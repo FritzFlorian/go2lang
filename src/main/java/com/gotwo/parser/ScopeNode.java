@@ -17,6 +17,7 @@ import java.util.Map;
  */
 public class ScopeNode extends Node {
     private Map<String, IntegerDeclaration> integerDeclarations;
+    private List<LabelNode> labelNodes;
     private ScopeNode parentScope; //Needed for variable lookup
     private ParsingContext context;
     private List<Node> childNodes;
@@ -30,6 +31,7 @@ public class ScopeNode extends Node {
         this.context = context;
         this.id = context.getNextScopeId();
         this.childNodes = new ArrayList<>();
+        this.labelNodes = new ArrayList<>();
 
         if(parentScope == null) {
             height = 0;
@@ -53,6 +55,9 @@ public class ScopeNode extends Node {
 
     public void addChildNode(Node newChild) {
         childNodes.add(newChild);
+        if(newChild instanceof LabelNode) {
+            labelNodes.add((LabelNode)newChild);
+        }
     }
 
     public void addFirstChildNode(Node newChild) {
@@ -124,5 +129,9 @@ public class ScopeNode extends Node {
     @Override
     public int hashCode() {
         return id;
+    }
+
+    public List<LabelNode> getLabelNodes() {
+        return labelNodes;
     }
 }

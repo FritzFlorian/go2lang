@@ -11,8 +11,8 @@ public class Bracket extends Token {
 
     private BRACKET bracket;
 
-    public Bracket(BRACKET bracket) {
-        super(TYPE.BRACKET);
+    public Bracket(BRACKET bracket, int line) {
+        super(TYPE.BRACKET, line);
         this.bracket = bracket;
     }
 

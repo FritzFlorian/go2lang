@@ -6,8 +6,8 @@ package com.gotwo.lexer;
  * Represents a assigment in the file.
  */
 public class Assignment extends Token {
-    public Assignment() {
-        super(TYPE.ASSIGNMENT);
+    public Assignment(int line) {
+        super(TYPE.ASSIGNMENT, line);
     }
 
     @Override

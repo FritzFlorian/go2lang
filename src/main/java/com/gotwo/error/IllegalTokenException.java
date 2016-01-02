@@ -9,6 +9,6 @@ import com.gotwo.lexer.Token;
  */
 public class IllegalTokenException extends CompilerException {
     public IllegalTokenException(Token expected, Token actual) {
-        super("Found illegal token. Expected " + expected + ", found " + actual + "!");
+        super("Found illegal token. Expected " + expected + ", found " + actual + "!", actual);
     }
 }

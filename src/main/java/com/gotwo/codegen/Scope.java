@@ -12,9 +12,10 @@ import java.util.Set;
  * most important thing for now is that variable lookup works.
  */
 public class Scope {
-    private Scope logicalParent;
-    private Map<String,Integer> integers;
-    private int id;
+    public Scope logicalParent;
+    public Map<String,Integer> integers;
+    public int id;
+    public int lastLabel = -1;
 
 
     public Scope(Scope logicalParent, int id) {
@@ -34,7 +35,7 @@ public class Scope {
      * @param value The new value for the variable
      */
     public void setLocalIntegerVariable(String name, int value) {
-        //System.out.println("Init integer " + name + " with value " + value);
+        System.out.println("Init integer " + name + " with value " + value);
         integers.put(name, value);
     }
 
@@ -49,7 +50,7 @@ public class Scope {
      * @param value The new value for the variable
      */
     public void setIntegerValue(String name, int value) {
-        //System.out.println("Update integer " + name + " to value " + value);
+        System.out.println("Update integer " + name + " to value " + value);
         Scope currentScope = this;
         while(!currentScope.integers.containsKey(name)) {
             currentScope = currentScope.logicalParent;

@@ -1,5 +1,7 @@
 package com.gotwo.error;
 
+import com.gotwo.lexer.Token;
+
 /**
  * Created by florian on 09/12/15.
  *
@@ -7,7 +9,7 @@ package com.gotwo.error;
  */
 public class UndeclearedCall extends CompilerException {
 
-    public UndeclearedCall(String name) {
-        super("Undeclared call: " + name);
+    public UndeclearedCall(String name, Token token) {
+        super("Undeclared call: " + name, token);
     }
 }

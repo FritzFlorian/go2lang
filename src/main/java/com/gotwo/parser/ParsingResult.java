@@ -11,19 +11,22 @@ public class ParsingResult {
     private List<LabelDeclaration> labelList;
     private Map<LabelDeclaration, ScopeNode> targetScopes;
     private Map<String, LabelDeclaration> targetLabels;
+    private Map<String, List<LabelDeclaration>> goBackLabels;
     private List<ScopeNode> scopeNodes;
     private ParsingContext context;
 
 
     public ParsingResult(ScopeNode rootScope, List<LabelDeclaration> labelList,
                          Map<LabelDeclaration, ScopeNode> targetScopes, Map<String, LabelDeclaration> targetLabels,
-                         ParsingContext context, List<ScopeNode> scopeNodes) {
+                         ParsingContext context, List<ScopeNode> scopeNodes,
+                         Map<String, List<LabelDeclaration>> goBackLabels) {
         this.rootScope = rootScope;
         this.labelList = labelList;
         this.targetScopes = targetScopes;
         this.targetLabels = targetLabels;
         this.context = context;
         this.scopeNodes = scopeNodes;
+        this.goBackLabels = goBackLabels;
     }
 
     public ScopeNode getRootScope() {
@@ -48,5 +51,9 @@ public class ParsingResult {
 
     public List<ScopeNode> getScopeNodes() {
         return scopeNodes;
+    }
+
+    public Map<String, List<LabelDeclaration>> getGoBackLabels() {
+        return goBackLabels;
     }
 }

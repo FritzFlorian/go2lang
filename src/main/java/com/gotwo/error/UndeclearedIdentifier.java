@@ -1,5 +1,7 @@
 package com.gotwo.error;
 
+import com.gotwo.lexer.Token;
+
 /**
  * Created by florian on 09/12/15.
  *
@@ -7,11 +9,11 @@ package com.gotwo.error;
  */
 public class UndeclearedIdentifier extends CompilerException {
 
-    public UndeclearedIdentifier(String name) {
-        this(name, " forward declaration.");
+    public UndeclearedIdentifier(String name, Token token) {
+        this(name, " forward declaration.", token);
     }
 
-    public UndeclearedIdentifier(String name, String expected) {
-        super("Found identifier " + name + ". Possible/expected" + expected + "!" );
+    public UndeclearedIdentifier(String name, String expected, Token token) {
+        super("Found identifier " + name + ". Possible/expected" + expected + "!", token);
     }
 }

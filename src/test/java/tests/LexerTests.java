@@ -33,6 +33,8 @@ public class LexerTests {
         recognizeKeyword("go", 0, Keyword.KEY.GO);
         recognizeKeyword("to", 0, Keyword.KEY.TO);
         recognizeKeyword("run", 0, Keyword.KEY.RUN);
+        recognizeKeyword("back", 0, Keyword.KEY.BACK);
+        recognizeKeyword("other", 0, Keyword.KEY.OTHER);
     }
 
     @Test
@@ -50,7 +52,7 @@ public class LexerTests {
         lexer = new Lexer(getReader(input));
         try {
             res = lexer.lexAll();
-            assertEquals("Lexer should detected " + key + " keyword.(Input: " + input + " )", res.get(pos), new Keyword(key));
+            assertEquals("Lexer should detected " + key + " keyword.(Input: " + input + " )", res.get(pos), new Keyword(key, 0));
         } catch (Exception e) {
             org.junit.Assert.fail("Lexer should detected " + key + " keyword.(Input: " + input + " )");
         }
@@ -77,7 +79,7 @@ public class LexerTests {
         lexer = new Lexer(getReader(input));
         try {
             res = lexer.lexAll();
-            assertEquals("Lexer should detected " + identifier + " identifier.(Input: " + input + " )", res.get(pos), new Identifier(identifier));
+            assertEquals("Lexer should detected " + identifier + " identifier.(Input: " + input + " )", res.get(pos), new Identifier(identifier, 0));
         } catch (Exception e) {
             org.junit.Assert.fail("Lexer should detected " + identifier + " identifier.(Input: " + input + " )");
         }
@@ -102,7 +104,7 @@ public class LexerTests {
         lexer = new Lexer(getReader(input));
         try {
             res = lexer.lexAll();
-            assertEquals("Lexer should detected assignment identifier.(Input: " + input + " )", res.get(pos), new Assignment());
+            assertEquals("Lexer should detected assignment identifier.(Input: " + input + " )", res.get(pos), new Assignment(0));
         } catch (Exception e) {
             org.junit.Assert.fail("Lexer should detected assignment identifier.(Input: " + input + " )");
         }
@@ -128,6 +130,7 @@ public class LexerTests {
         recognizeOperator("<=", 0, Operator.OP.LESSEQU);
         recognizeOperator(">", 0, Operator.OP.GREATER);
         recognizeOperator("<", 0, Operator.OP.LESS);
+        recognizeOperator("!", 0, Operator.OP.NOT);
     }
 
     @Test
@@ -144,7 +147,7 @@ public class LexerTests {
         lexer = new Lexer(getReader(input));
         try {
             res = lexer.lexAll();
-            assertEquals("Lexer should detected " + operator + " operator.(Input: " + input + " )", res.get(pos), new Operator(operator));
+            assertEquals("Lexer should detected " + operator + " operator.(Input: " + input + " )", res.get(pos), new Operator(operator, 0));
         } catch (Exception e) {
             org.junit.Assert.fail("Lexer should detected " + operator + " operator.(Input: " + input + " )");
         }
@@ -173,7 +176,7 @@ public class LexerTests {
         lexer = new Lexer(getReader(input));
         try {
             res = lexer.lexAll();
-            assertEquals("Lexer should detected " + value + " integer.(Input: " + input + " )", res.get(pos), new Integer(value));
+            assertEquals("Lexer should detected " + value + " integer.(Input: " + input + " )", res.get(pos), new Integer(value, 0));
         } catch (Exception e) {
             org.junit.Assert.fail("Lexer should detected " + value + " integer.(Input: " + input + " )");
         }

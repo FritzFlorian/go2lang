@@ -7,8 +7,8 @@ package com.gotwo.lexer;
  * This is needed as we only allow one statement per line.
  */
 public class Newline extends Token {
-    public Newline() {
-        super(TYPE.NEWLINE);
+    public Newline(int line) {
+        super(TYPE.NEWLINE, line);
     }
 
     @Override

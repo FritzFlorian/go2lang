@@ -9,8 +9,8 @@ package com.gotwo.lexer;
 public class Integer extends Token {
     private int value;
 
-    public Integer(int value) {
-        super(TYPE.INTEGER);
+    public Integer(int value, int line) {
+        super(TYPE.INTEGER, line);
         this.value = value;
     }
 
