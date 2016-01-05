@@ -28,8 +28,6 @@ label loop
 scope
     int bottles = 0
     bottles = x
-
-    go to console
 end
 
 if x < max
