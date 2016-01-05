@@ -20,11 +20,11 @@
             Go2
 
          #menu
-            %a{:class => "button", :href => ""}
+            %a{:class => "button", :href => "/"}
                Home
-            %a{:class => "button", :href => ""}
+            %a{:class => "button", :href => "/learn.html"}
                Learn
-            %a{:class => "button", :href => ""}
+            %a{:class => "button", :href => "/about.html"}
                About
    #content
       .container= yield
@@ -32,6 +32,13 @@
    #footer
       %br
       %br
-      %a{:href => ""}
-         Impressum
+      %p
+         %a{:href => "https://github.com/FritzFlorian/go2lang"}
+            Visit on Github
+      %p
+         %a{:href => "/impressum.html"}
+            Impressum
+      %p
+         %a{:href => "/datenschutz.html"}
+            Datenschutz
     
