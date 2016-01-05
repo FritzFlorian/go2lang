@@ -15,7 +15,6 @@ This includes the following statements:
 * run to labelName
 * int varName = number
 * varName = expression
-* go to console
 
 Here is a quick code sample:
 ```batch
