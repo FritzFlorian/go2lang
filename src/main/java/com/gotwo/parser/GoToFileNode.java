@@ -8,12 +8,14 @@ import com.gotwo.codegen.SPEED;
 public class GoToFileNode extends Node {
     private SPEED speed;
     private String targetFile, targetLabel;
+    private LabelDeclaration backLabel;
 
-    public GoToFileNode (SPEED speed, String targetFile, String targetLabel) {
+    public GoToFileNode (SPEED speed, String targetFile, String targetLabel, LabelDeclaration backLabel) {
         super(TYPE.GOTOFILE);
         this.speed = speed;
         this.targetFile = targetFile;
         this.targetLabel = targetLabel;
+        this.backLabel = backLabel;
     }
 
     public SPEED getSpeed() {
@@ -26,5 +28,9 @@ public class GoToFileNode extends Node {
 
     public String getTargetLabel() {
         return targetLabel;
+    }
+
+    public LabelDeclaration getBackLabel() {
+        return backLabel;
     }
 }

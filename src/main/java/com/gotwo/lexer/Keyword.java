@@ -7,7 +7,7 @@ package com.gotwo.lexer;
  * Used to determine when specific internal constructs start or end.
  */
 public class Keyword extends Token {
-    public enum KEY {IF, END, LABEL, SCOPE, INT, GO, TO, BACK, RUN, SPRINT, OTHER}
+    public enum KEY {IF, END, LABEL, SCOPE, INT, GO, TO, BACK, RUN, SPRINT, OTHER, INVITE}
     private KEY key;
 
     public Keyword(KEY key, int line) {

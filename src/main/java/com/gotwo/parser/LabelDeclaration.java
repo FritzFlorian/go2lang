@@ -13,13 +13,15 @@ public class LabelDeclaration {
     private int position;
     private boolean declared;
     private Label label;
+    private int numericValue;
 
-    public LabelDeclaration(String name, ScopeNode scope, int id,int position, boolean declared) {
+    public LabelDeclaration(String name, ScopeNode scope, int id,int position, boolean declared, int numericValue) {
         this.name = name;
         this.scope = scope;
         this.id = id;
         this.position = position;
         this.declared = declared;
+        this.numericValue = numericValue;
     }
 
     public void markAsDeclared(ScopeNode scope) {
@@ -102,5 +104,9 @@ public class LabelDeclaration {
         code += declared ? 1 : 0;
 
         return code;
+    }
+
+    public int getNumericValue() {
+        return numericValue;
     }
 }

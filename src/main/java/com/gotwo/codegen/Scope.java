@@ -16,6 +16,8 @@ public class Scope {
     public Map<String,Integer> integers;
     public int id;
     public int lastLabel = -1;
+    public String externalBackLabel = null;
+    public String externalBackFile = null;
 
 
     public Scope(Scope logicalParent, int id) {
@@ -116,5 +118,35 @@ public class Scope {
         for(Map.Entry<String, Integer> integer : integerSet) {
             System.out.println(integer.getKey() + " = " + integer.getValue());
         }
+    }
+
+    /**
+     * Gets the next external back label string.
+     */
+    public String getNextExternalBackLabel() {
+        Scope currentScope = this;
+        while(currentScope != null) {
+            if(currentScope.externalBackLabel != null) {
+                return externalBackLabel;
+            }
+            currentScope = currentScope.logicalParent;
+        }
+
+        return null;
+    }
+
+    /**
+     * Gets the next external back file string.
+     */
+    public String getNextExternalBackFile() {
+        Scope currentScope = this;
+        while(currentScope != null) {
+            if(currentScope.externalBackFile != null) {
+                return externalBackFile;
+            }
+            currentScope = currentScope.logicalParent;
+        }
+
+        return null;
     }
 }

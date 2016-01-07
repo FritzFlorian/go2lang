@@ -18,14 +18,14 @@ public class ParsingContext {
     }
 
     public int getNextIntegerId() {
-        return ++currentIntegerId;
+        return currentIntegerId++;
     }
 
     public int getNextLabelId() {
-        return ++currentLabelId;
+        return currentLabelId++;
     }
 
     public int getNextScopeId() {
-        return ++currentScopeId;
+        return currentScopeId++;
     }
 }

@@ -14,7 +14,9 @@ public abstract class GoTwoBase {
         GoTwoBase current = this;
 
         current.run();
+        System.out.println("Finished first run...");
         while(current.targetFile != null) {
+            System.out.println("Jump to file..." + current.targetFile + " and " + current.targetLabel);
             GoTwoBase next = instantiate(current.targetFile, GoTwoBase.class);
             next.oldScope = current.currentScope;
             next.targetLabel = current.targetLabel;
@@ -30,6 +32,7 @@ public abstract class GoTwoBase {
 
             current.run();
         }
+        System.out.println("stop go two program..." + current.targetFile + " and " + current.targetLabel);
     }
 
     public abstract void run();

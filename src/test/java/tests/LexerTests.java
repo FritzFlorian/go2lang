@@ -35,6 +35,7 @@ public class LexerTests {
         recognizeKeyword("run", 0, Keyword.KEY.RUN);
         recognizeKeyword("back", 0, Keyword.KEY.BACK);
         recognizeKeyword("other", 0, Keyword.KEY.OTHER);
+        recognizeKeyword("invite", 0, Keyword.KEY.INVITE);
     }
 
     @Test

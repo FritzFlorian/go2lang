@@ -13,17 +13,12 @@ public class LearnASM extends GoTwoBase{
     }
 
     public void run() {
-        this.currentScope = null;
-        this.targetFile = null;
-        this.targetSpeed = null;
-        if(this.oldScope != null) {
-            oldScope.printRun();
+        if(currentScope == null) {
+            int x;
         } else {
-            System.out.println("No old scope given...");
+            int y;
         }
 
-        this.currentScope = oldScope;
-        this.targetFile = "com.gotwo.Dummy";
     }
 
 }

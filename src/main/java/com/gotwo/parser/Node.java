@@ -6,7 +6,7 @@ package com.gotwo.parser;
  * Represents a single node in our AST.
  */
 public abstract class Node {
-    public enum TYPE {SCOPE, CONDITION, EXPRESSION, LABEL, ASSIGNMENT, GOTO, GOTOFILE, GOBACK};
+    public enum TYPE {SCOPE, CONDITION, EXPRESSION, LABEL, ASSIGNMENT, GOTO, GOTOFILE, GOBACK, INVITATION};
 
     private TYPE type;
 

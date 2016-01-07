@@ -26,6 +26,7 @@ public class Parser {
     private Map<String, List<LabelDeclaration>> goBackLabels;
     private List<ScopeNode> scopeNodes;
     private ParsingContext context;
+    private List<InvitationNode> invitations;
 
     public Parser(List<Token> tokenList) {
         this.tokenList = tokenList;
@@ -35,6 +36,7 @@ public class Parser {
         this.targetScopes = new HashMap<>();
         this.targetLabels = new HashMap<>();
         this.goBackLabels = new HashMap<>();
+        this.invitations = new ArrayList<>();
 
         //Artificially add an end token to make parsing the
         //global outer scope easy
@@ -42,15 +44,27 @@ public class Parser {
     }
 
     public ParsingResult parseTokens() throws RequireTokenException, IllegalTokenException, UndeclearedIdentifier, DuplicatedIdentifier {
-        ScopeNode root = parseScope(null);  //The root scope is the special, most outer scope
-                                            //It never has a parent scope(during compile time)
+        ScopeNode externalRoot = new ScopeNode(null, context);
+        ScopeNode root = parseScope(externalRoot);  //The root scope is the special, most outer scope
+                                            //It never has a "real" parent scope(during compile time)
+                                            //Its parent scope is a simple helper for external jumps
 
         if(targetLabels.containsKey("start")) {
             //Generate start goto
-            root.addFirstChildNode(new GoToLabelNode(SPEED.RUN, targetLabels.get("start")));
+            externalRoot.addChildNode(new GoToLabelNode(SPEED.RUN, targetLabels.get("start")));
         }
 
-        return new ParsingResult(root, labelList, targetScopes, targetLabels, context, scopeNodes, goBackLabels);
+        //Add external jumps to the externalRoot
+        addExternalJumps(externalRoot);
+        externalRoot.addChildNode(root);
+
+        return new ParsingResult(externalRoot, labelList, targetScopes, targetLabels, context, scopeNodes, goBackLabels);
+    }
+
+    private void addExternalJumps(ScopeNode scopeNode) {
+        for(InvitationNode invitationNode : invitations) {
+            scopeNode.addChildNode(invitationNode);
+        }
     }
 
     /**
@@ -159,9 +173,60 @@ public class Parser {
                 handleIfBlock(currentScope);
                 break;
 
+            case INVITE:
+                handleInviteNode(currentScope);
+                break;
+
             default:
                 throw new IllegalTokenException(null, keyword);
         }
+    }
+
+    private void handleInviteNode(ScopeNode currentScope) throws RequireTokenException, IllegalTokenException, DuplicatedIdentifier {
+        String firstIdentifier = requireFullLabelName();
+
+        Keyword firstTo = (Keyword) requireToken(Token.TYPE.KEYWORD);
+        tokenList.remove(0);
+        Keyword keyword = (Keyword) requireToken(Token.TYPE.KEYWORD);
+        tokenList.remove(0);
+        Keyword secondTo = (Keyword) requireToken(Token.TYPE.KEYWORD);
+        tokenList.remove(0);
+
+        SPEED speed;
+
+        switch (keyword.getKey()) {
+            case GO:
+                speed = SPEED.GO;
+                break;
+            case RUN:
+                speed = SPEED.RUN;
+                break;
+            case SPRINT:
+                speed = SPEED.SPRINT;
+                break;
+            default:
+                throw new IllegalTokenException(new Keyword(Keyword.KEY.GO, keyword.getLine()), keyword);
+        }
+
+        if(firstTo.getKey() != Keyword.KEY.TO) {
+            throw new IllegalTokenException(new Keyword(Keyword.KEY.TO, firstTo.getLine()), firstTo);
+        }
+        if(secondTo.getKey() != Keyword.KEY.TO) {
+            throw new IllegalTokenException(new Keyword(Keyword.KEY.TO, firstTo.getLine()), firstTo);
+        }
+
+        String secondIdentifier = requireFullLabelName();
+
+        addInviteNode(secondIdentifier, firstIdentifier, speed, currentScope, keyword);
+    }
+
+    private void addInviteNode(String targetName, String externalName, SPEED speed, ScopeNode currentScope, Token keyword) throws DuplicatedIdentifier {
+        //Here wo got everything we need to get started
+        LabelDeclaration targetLabel = declareLabel(targetName, currentScope, false, -1, keyword);
+        GoToLabelNode goToLabelNode = new GoToLabelNode(speed, targetLabel);
+        InvitationNode invitationNode = new InvitationNode(externalName, goToLabelNode, speed);
+        invitations.add(invitationNode);
+        goToLabelNode.setBackLabel(handleLocalGoBackLabel(currentScope, targetLabel, keyword, "invitation", false));
     }
 
     private void handleGoToNode(SPEED speed, ScopeNode currentScope) throws RequireTokenException, IllegalTokenException, DuplicatedIdentifier {
@@ -195,13 +260,13 @@ public class Parser {
 
         LabelDeclaration targetLabel = targetLabels.get(fullLabelName);
         if(targetLabel == null) {
-            targetLabel = declareLabel(fullLabelName, currentScope, false, currentToken);
+            targetLabel = declareLabel(fullLabelName, currentScope, false, -1, currentToken);
         }
 
         GoToLabelNode goToLabelNode = new GoToLabelNode(speed, targetLabel);
         currentScope.addChildNode(goToLabelNode);
 
-        goToLabelNode.setBackLabel(handleLocalGoBackLabel(currentScope, targetLabel, currentToken));
+        goToLabelNode.setBackLabel(handleLocalGoBackLabel(currentScope, targetLabel, currentToken, "goto", true));
     }
 
     private void handleGoBackNode(SPEED speed, ScopeNode currentScope) throws RequireTokenException, IllegalTokenException, DuplicatedIdentifier {
@@ -209,30 +274,46 @@ public class Parser {
     }
 
 
-    private LabelDeclaration handleLocalGoBackLabel(ScopeNode currentScope, LabelDeclaration targetLabel, Token currentToken) throws DuplicatedIdentifier {
+    private LabelDeclaration handleLocalGoBackLabel(ScopeNode currentScope, LabelDeclaration targetLabel, Token currentToken, String suffix, boolean add) throws DuplicatedIdentifier {
         //Go back semantic, add a jump back label & keep track of possible go backs
-        LabelDeclaration backLabelDeclaration = declareLabel("#" + currentToken.getLine() + "#", currentScope, true, currentToken);
+        LabelDeclaration backLabelDeclaration = declareLabel("#" + currentToken.getLine() + "#" + suffix, currentScope, false, currentToken.getLine(), currentToken);
         if(!goBackLabels.containsKey(targetLabel.getName())) {
             goBackLabels.put(targetLabel.getName(), new LinkedList<>());
         }
         goBackLabels.get(targetLabel.getName()).add(backLabelDeclaration);
+        if(add) {
+            currentScope.addChildNode(new LabelNode(backLabelDeclaration));
+        }
+
+        return backLabelDeclaration;
+    }
+
+    private LabelDeclaration handleExternalGoBackLabel(ScopeNode currentScope, String target, Token currentToken) throws DuplicatedIdentifier {
+        LabelDeclaration backLabelDeclaration = declareLabel("$" + currentToken.getLine() + "$", currentScope, false, currentToken.getLine(), currentToken);
+        if(!goBackLabels.containsKey(target)) {
+            goBackLabels.put(target, new LinkedList<>());
+        }
+        goBackLabels.get(target).add(backLabelDeclaration);
         currentScope.addChildNode(new LabelNode(backLabelDeclaration));
 
         return backLabelDeclaration;
     }
 
-    private void handleGoToFile(SPEED speed, ScopeNode currentScope, Keyword keyword) throws IllegalTokenException, RequireTokenException {
+    private void handleGoToFile(SPEED speed, ScopeNode currentScope, Keyword keyword) throws IllegalTokenException, RequireTokenException, DuplicatedIdentifier {
         switch (keyword.getKey()) {
             case OTHER:
                 Identifier identifier = (Identifier)requireToken(Token.TYPE.IDENTIFIER);
                 tokenList.remove(0);
                 String fullLabelName = requireFullLabelName();
-                currentScope.addChildNode(new GoToFileNode(speed, identifier.getName(),fullLabelName));
+                LabelDeclaration backLabel = handleExternalGoBackLabel(currentScope, fullLabelName, identifier);
+                currentScope.addChildNode(new GoToFileNode(speed, identifier.getName(),fullLabelName, backLabel));
+                for(SPEED backSpeed : SPEED.values()) {
+                    addInviteNode(backLabel.getName(), backLabel.getName(), backSpeed, currentScope, keyword);
+                }
                 break;
             default:
                 throw new IllegalTokenException(null, keyword);
         }
-        //TODO: cross file go back mechanic
     }
 
     /**
@@ -394,7 +475,7 @@ public class Parser {
     private void handleLabelDeclaration(ScopeNode currentScope, Token currentToken) throws IllegalTokenException, RequireTokenException, DuplicatedIdentifier {
         String fullLabelName = requireFullLabelName();
 
-        currentScope.addChildNode(new LabelNode(declareLabel(fullLabelName, currentScope, true, currentToken)));
+        currentScope.addChildNode(new LabelNode(declareLabel(fullLabelName, currentScope, true, -1, currentToken)));
     }
 
     private String requireFullLabelName() throws RequireTokenException, IllegalTokenException {
@@ -412,7 +493,7 @@ public class Parser {
         return fullLabelName;
     }
 
-    private LabelDeclaration declareLabel(String name, ScopeNode currentScope, boolean newLabel, Token currentToken) throws DuplicatedIdentifier {
+    private LabelDeclaration declareLabel(String name, ScopeNode currentScope, boolean newLabel, int numericValue, Token currentToken) throws DuplicatedIdentifier {
         LabelDeclaration labelDeclaration = targetLabels.get(name);
 
         if(labelDeclaration != null) {
@@ -428,7 +509,7 @@ public class Parser {
         }
 
 
-        labelDeclaration = new LabelDeclaration(name, currentScope, context.getNextLabelId(),  currentScope.getChildNodes().size(), newLabel);
+        labelDeclaration = new LabelDeclaration(name, currentScope, context.getNextLabelId(),  currentScope.getChildNodes().size(), newLabel, numericValue);
 
         labelList.add(labelDeclaration);
         targetScopes.put(labelDeclaration, currentScope);

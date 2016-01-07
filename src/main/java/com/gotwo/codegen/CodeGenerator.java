@@ -158,17 +158,8 @@ public class CodeGenerator implements Opcodes{
                 null,
                 null);
         mv.visitCode();
-        //Print out a message
-        mv.visitFieldInsn(GETSTATIC,
-                "java/lang/System",
-                "out",
-                "Ljava/io/PrintStream;");
-        mv.visitLdcInsn("Starting go2 program...");
-        mv.visitMethodInsn(INVOKEVIRTUAL,
-                "java/io/PrintStream",
-                "println",
-                "(Ljava/lang/String;)V",
-                false);
+
+        printMessage(mv, "starting go2 program...");
 
         //Here we start, above is simply init and a "greeting" to make sure our program runs
         //Init a new instance of this class...
@@ -183,6 +174,20 @@ public class CodeGenerator implements Opcodes{
         mv.visitInsn(RETURN);
         mv.visitMaxs(2, 1);
         mv.visitEnd();
+    }
+
+    private void printMessage(MethodVisitor mv, String message) {
+        //Print out a message
+        mv.visitFieldInsn(GETSTATIC,
+                "java/lang/System",
+                "out",
+                "Ljava/io/PrintStream;");
+        mv.visitLdcInsn(message);
+        mv.visitMethodInsn(INVOKEVIRTUAL,
+                "java/io/PrintStream",
+                "println",
+                "(Ljava/lang/String;)V",
+                false);
     }
 
     /**
@@ -325,7 +330,7 @@ public class CodeGenerator implements Opcodes{
         //Here comes the actual work
         //Convert the AST to bytecode
         //Lets do this recursive for sub-scopes
-        tempStackHeight = generateScopeNodeCode(mv ,parsingResult.getRootScope() );
+        tempStackHeight = generateScopeNodeCode(mv ,parsingResult.getRootScope() ) + 1;
 
         if(tempStackHeight > maxStackHeight) {
             maxStackHeight = tempStackHeight;
@@ -348,16 +353,31 @@ public class CodeGenerator implements Opcodes{
      * @throws UndeclearedIdentifier
      */
     private int generateScopeNodeCode(MethodVisitor mv, ScopeNode scopeNode) throws UndeclearedIdentifier {
-        int localStackHeight = 3;
+        int localStackHeight = 4;
         int tempStackHeight = 0;
 
         //Generate the current scope
         //At this point the stack should be empty
-        mv.visitVarInsn(ALOAD, 0);
-        mv.visitLdcInsn(scopeNode.getId());
-        mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
-        mv.visitMethodInsn(INVOKEVIRTUAL, className, "initScopeWithId", "(ILcom/gotwo/codegen/Scope;)Lcom/gotwo/codegen/Scope;", false);
-        mv.visitVarInsn(ASTORE, CURRENT_SCOPE);
+        if(scopeNode.getId() != 0) { //The external outer scope is an special case
+            generateInitScope(mv, scopeNode.getId());
+        } else {
+            mv.visitVarInsn(ALOAD, 0);
+            mv.visitFieldInsn(GETFIELD, className, "currentScope", "Lcom/gotwo/codegen/Scope;");
+            Label notNullLabel = new Label();
+            Label endIf = new Label();
+            mv.visitJumpInsn(IFNONNULL, notNullLabel);
+            //null code
+            generateInitScope(mv, 0);
+
+            mv.visitJumpInsn(GOTO, endIf);
+            mv.visitLabel(notNullLabel);
+            //Not null code
+            mv.visitVarInsn(ALOAD, 0);
+            mv.visitFieldInsn(GETFIELD, className, "currentScope", "Lcom/gotwo/codegen/Scope;");
+            mv.visitVarInsn(ASTORE, CURRENT_SCOPE);
+
+            mv.visitLabel(endIf);
+        }
         //Stack is empty again, ready to do some work
 
 
@@ -391,6 +411,10 @@ public class CodeGenerator implements Opcodes{
                 case GOBACK:
                     localStackHeight = generateGoBack(mv, scopeNode, (GoBackNode) node);
                     break;
+
+                case INVITATION:
+                    localStackHeight = generateInvitation(mv, (InvitationNode) node, scopeNode);
+                    break;
             }
 
             if(tempStackHeight > localStackHeight) {
@@ -399,6 +423,54 @@ public class CodeGenerator implements Opcodes{
         }
 
         return localStackHeight;
+    }
+
+    private void generateInitScope(MethodVisitor mv, int id) {
+        mv.visitVarInsn(ALOAD, 0);
+        mv.visitLdcInsn(id);
+        mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
+        mv.visitMethodInsn(INVOKEVIRTUAL, className, "initScopeWithId", "(ILcom/gotwo/codegen/Scope;)Lcom/gotwo/codegen/Scope;", false);
+        mv.visitVarInsn(ASTORE, CURRENT_SCOPE);
+    }
+
+    private int generateInvitation(MethodVisitor mv, InvitationNode invitationNode, ScopeNode currentScope) {
+        int stackHeight;
+        Label noMatch = new Label();
+
+        //Test for same target name
+        mv.visitVarInsn(ALOAD, 0);
+        mv.visitFieldInsn(GETFIELD, className, "targetLabel", "Ljava/lang/String;");
+        mv.visitLdcInsn(invitationNode.getExternalName());
+        mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/String", "equals", "(Ljava/lang/Object;)Z", false);
+        mv.visitJumpInsn(IFEQ, noMatch);
+        //Test for same speed
+        mv.visitVarInsn(ALOAD, 0);
+        mv.visitFieldInsn(GETFIELD, className, "targetSpeed", "Lcom/gotwo/codegen/SPEED;");
+        mv.visitFieldInsn(GETSTATIC, "com/gotwo/codegen/SPEED", invitationNode.getSpeed().toString(), "Lcom/gotwo/codegen/SPEED;");
+        mv.visitJumpInsn(IF_ACMPNE, noMatch);
+
+        printMessage(mv, "redirect external call...");
+        //Go to
+        stackHeight = generateGoTo(mv, invitationNode.getJumpInstruction(), currentScope);
+        //Go back
+        mv.visitLabel( invitationNode.getJumpInstruction().getBackLabel().getLabel() );
+        printMessage(mv, "lets go back!!!");
+        mv.visitVarInsn(ALOAD, 0);
+        mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
+        mv.visitMethodInsn(INVOKEVIRTUAL, "com/gotwo/codegen/Scope", "getNextExternalBackFile", "()Ljava/lang/String;", false);
+        mv.visitFieldInsn(PUTFIELD, className, "targetFile", "Ljava/lang/String;");
+
+        mv.visitVarInsn(ALOAD, 0);
+        mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
+        mv.visitMethodInsn(INVOKEVIRTUAL, "com/gotwo/codegen/Scope", "getNextExternalBackLabel", "()Ljava/lang/String;", false);
+        mv.visitFieldInsn(PUTFIELD, className, "targetLabel", "Ljava/lang/String;");
+        saveCurrentScope(mv);
+        mv.visitInsn(RETURN);
+
+        //Go here if there was no match
+        mv.visitLabel(noMatch);
+
+        return stackHeight > 4 ? stackHeight : 4;
     }
 
     /**
@@ -411,26 +483,51 @@ public class CodeGenerator implements Opcodes{
      * @throws UndeclearedIdentifier
      */
     private int generateGoToFile(MethodVisitor mv, GoToFileNode goToNode) throws UndeclearedIdentifier {
-        //Save the current scope from the local variable
-        mv.visitVarInsn(ALOAD, 0);
-        mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
-        mv.visitFieldInsn(PUTFIELD, className, "currentScope", "Lcom/gotwo/codegen/Scope;");
+        saveCurrentScope(mv);
+        saveTargetSpeed(mv, goToNode.getSpeed());
+        saveTargetFile(mv, goToNode.getTargetFile());
+        saveTargetLabel(mv, goToNode.getTargetLabel());
 
         mv.visitVarInsn(ALOAD, 0);
-        mv.visitFieldInsn(GETSTATIC, "com/gotwo/codegen/SPEED", goToNode.getSpeed().toString(), "Lcom/gotwo/codegen/SPEED;");
-        mv.visitFieldInsn(PUTFIELD, className, "targetSpeed", "Lcom/gotwo/codegen/SPEED;");
+        mv.visitFieldInsn(GETFIELD, className, "currentScope", "Lcom/gotwo/codegen/Scope;");
+        mv.visitVarInsn(ALOAD, 0);
+        mv.visitMethodInsn(INVOKEVIRTUAL, className, "getClass", "()Ljava/lang/Class;", false);
+        mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/Class", "getCanonicalName", "()Ljava/lang/String;", false);
+        mv.visitFieldInsn(PUTFIELD, "com/gotwo/codegen/Scope", "externalBackLabel", "Ljava/lang/String;");
 
         mv.visitVarInsn(ALOAD, 0);
-        mv.visitLdcInsn(goToNode.getTargetFile());
-        mv.visitFieldInsn(PUTFIELD, className, "targetFile", "Ljava/lang/String;");
-
-        mv.visitVarInsn(ALOAD, 0);
-        mv.visitLdcInsn(goToNode.getTargetLabel());
-        mv.visitFieldInsn(PUTFIELD, className, "targetLabel", "Ljava/lang/String;");
+        mv.visitFieldInsn(GETFIELD, className, "currentScope", "Lcom/gotwo/codegen/Scope;");
+        mv.visitLdcInsn("/" + goToNode.getBackLabel().getName());
+        mv.visitFieldInsn(PUTFIELD, "com/gotwo/codegen/Scope", "externalBackFile", "Ljava/lang/String;");
 
         mv.visitInsn(RETURN);
 
         return 2;
+    }
+
+    private void saveCurrentScope(MethodVisitor mv) {
+        //Save the current scope from the local variable
+        mv.visitVarInsn(ALOAD, 0);
+        mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
+        mv.visitFieldInsn(PUTFIELD, className, "currentScope", "Lcom/gotwo/codegen/Scope;");
+    }
+
+    private void saveTargetSpeed(MethodVisitor mv, SPEED speed) {
+        mv.visitVarInsn(ALOAD, 0);
+        mv.visitFieldInsn(GETSTATIC, "com/gotwo/codegen/SPEED", speed.toString(), "Lcom/gotwo/codegen/SPEED;");
+        mv.visitFieldInsn(PUTFIELD, className, "targetSpeed", "Lcom/gotwo/codegen/SPEED;");
+    }
+
+    private void saveTargetFile(MethodVisitor mv, String file) {
+        mv.visitVarInsn(ALOAD, 0);
+        mv.visitLdcInsn(file);
+        mv.visitFieldInsn(PUTFIELD, className, "targetFile", "Ljava/lang/String;");
+    }
+
+    private void saveTargetLabel(MethodVisitor mv, String file) {
+        mv.visitVarInsn(ALOAD, 0);
+        mv.visitLdcInsn(file);
+        mv.visitFieldInsn(PUTFIELD, className, "targetLabel", "Ljava/lang/String;");
     }
 
     /**
@@ -452,12 +549,15 @@ public class CodeGenerator implements Opcodes{
                     //Get the old scope id
                     mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
                     mv.visitFieldInsn(GETFIELD, "com/gotwo/codegen/Scope", "lastLabel", "I");
-                    mv.visitLdcInsn(getBackLabelId(labelDeclaration));
+                    mv.visitLdcInsn(labelDeclaration.getNumericValue());
                     mv.visitInsn(ISUB);
                     Label jumpOverLabel = new Label();
                     mv.visitJumpInsn(IFNE, jumpOverLabel);
 
                     tempStackHeight = generateGoTo(mv, currentScope, labelDeclaration, goBackNode.getSpeed(), -1);
+                    mv.visitVarInsn(ALOAD, 0);
+                    mv.visitFieldInsn(GETSTATIC, "com/gotwo/codegen/SPEED", goBackNode.getSpeed().toString(), "Lcom/gotwo/codegen/SPEED;");
+                    mv.visitFieldInsn(PUTFIELD, className, "targetSpeed", "Lcom/gotwo/codegen/SPEED;");
                     if(tempStackHeight > localStackHeight) {
                         localStackHeight = tempStackHeight;
                     }
@@ -483,14 +583,7 @@ public class CodeGenerator implements Opcodes{
      */
     private int generateGoTo(MethodVisitor mv, GoToLabelNode labelNode, ScopeNode currentScope) {
         return generateGoTo(mv, currentScope, labelNode.getTarget(), labelNode.getSpeed(),
-                             getBackLabelId(labelNode.getBackLabel()));
-    }
-
-    private int getBackLabelId(LabelDeclaration labelDeclaration) {
-        if(labelDeclaration == null) {
-            return -1;
-        }
-        return Integer.parseInt(labelDeclaration.getName().replaceAll("#", ""));
+                            labelNode.getBackLabel() != null ? labelNode.getBackLabel().getNumericValue() : -1);
     }
 
     /**
