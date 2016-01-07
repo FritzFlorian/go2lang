@@ -1,6 +1,7 @@
 package tests;
 
 import com.gotwo.codegen.SPEED;
+import com.gotwo.codegen.Scope;
 import com.gotwo.error.*;
 import com.gotwo.lexer.Identifier;
 import com.gotwo.lexer.Keyword;
@@ -33,77 +34,15 @@ public class ParserTests {
 
             resultNotNull(result);
             assertEquals(0, result.getLabelList().size());
-            checkEmptyScope(result.getRootScope());
-
-        } catch (CompilerException e) {
-            e.printStackTrace();
-            fail("Compiling error in syntactical correct program.");
-        }
-    }
-
-    @Test
-    public void shouldParseLabel() {
-        List<Token> tokenList = new ArrayList<>(Arrays.asList(
-                new Keyword(Keyword.KEY.LABEL, 1),
-                new Identifier("someLabel", 1),
-                new Newline(1)
-        ));
-
-        try {
-            Parser parser = new Parser(tokenList);
-            ParsingResult result = parser.parseTokens();
-
-            resultNotNull(result);
             assertEquals(1, result.getRootScope().getChildNodes().size());
-            assertEquals(1, result.getLabelList().size());
-            LabelDeclaration labelDeclaration = new LabelDeclaration("someLabel",
-                                                                     result.getRootScope(),
-                                                                     1, 0, true);
-            assertEquals(new LabelNode(labelDeclaration),
-                         result.getRootScope().getChildNodes().get(0));
-            assertEquals(labelDeclaration ,result.getLabelList().get(0));
-            assertEquals(1, result.getTargetLabels().size());
-            assertEquals(labelDeclaration, result.getTargetLabels().get("someLabel"));
+            checkEmptyScope((ScopeNode)result.getRootScope().getChildNodes().get(0));
 
         } catch (CompilerException e) {
             e.printStackTrace();
             fail("Compiling error in syntactical correct program.");
         }
     }
-
-    @Test
-    public void shouldParseStartLabel() {
-        List<Token> tokenList = new ArrayList<>(Arrays.asList(
-                new Keyword(Keyword.KEY.LABEL, 1),
-                new Identifier("start", 1),
-                new Newline(1)
-        ));
-
-        try {
-            Parser parser = new Parser(tokenList);
-            ParsingResult result = parser.parseTokens();
-
-            resultNotNull(result);
-            assertEquals(2, result.getRootScope().getChildNodes().size());
-            assertEquals(1, result.getLabelList().size());
-            LabelDeclaration labelDeclaration = new LabelDeclaration("start",
-                                                                     result.getRootScope(),
-                                                                     1, 1, true);
-            assertEquals(new GoToLabelNode(SPEED.RUN, labelDeclaration), result.getRootScope().getChildNodes().get(0));
-            assertEquals(new LabelNode(labelDeclaration), result.getRootScope().getChildNodes().get(1));
-
-            assertEquals(labelDeclaration, result.getLabelList().get(0));
-            assertEquals(1, result.getTargetLabels().size());
-            assertEquals(labelDeclaration, result.getTargetLabels().get("start"));
-
-
-        } catch (CompilerException e) {
-            e.printStackTrace();
-            fail("Compiling error in syntactical correct program.");
-        }
-    }
-
-
+    
     //Some helpers to check the structure faster
 
     /**
