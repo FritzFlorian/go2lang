@@ -10,11 +10,14 @@ public class GoToFileNode extends Node {
     private String targetFile, targetLabel;
     private LabelDeclaration backLabel;
 
-    public GoToFileNode (SPEED speed, String targetFile, String targetLabel, LabelDeclaration backLabel) {
+    public GoToFileNode (SPEED speed, String targetFile, String targetLabel) {
         super(TYPE.GOTOFILE);
         this.speed = speed;
         this.targetFile = targetFile;
         this.targetLabel = targetLabel;
+    }
+
+    public void setBackLabel(LabelDeclaration backLabel) {
         this.backLabel = backLabel;
     }
 

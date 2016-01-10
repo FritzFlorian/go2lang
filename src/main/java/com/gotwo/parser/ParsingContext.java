@@ -10,11 +10,13 @@ public class ParsingContext {
     private int currentIntegerId;
     private int currentLabelId;
     private int currentScopeId;
+    private int goBackLabelId;
 
     public ParsingContext() {
         currentIntegerId = 0;
         currentLabelId = 0;
         currentScopeId = 0;
+        goBackLabelId = 0;
     }
 
     public int getNextIntegerId() {
@@ -27,5 +29,9 @@ public class ParsingContext {
 
     public int getNextScopeId() {
         return currentScopeId++;
+    }
+
+    public int getGoBackLabelId() {
+        return goBackLabelId++;
     }
 }

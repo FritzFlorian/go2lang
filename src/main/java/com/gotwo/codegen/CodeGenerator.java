@@ -374,6 +374,9 @@ public class CodeGenerator implements Opcodes{
             //Not null code
             mv.visitVarInsn(ALOAD, 0);
             mv.visitFieldInsn(GETFIELD, className, "currentScope", "Lcom/gotwo/codegen/Scope;");
+            mv.visitInsn(DUP);
+            mv.visitInsn(ICONST_0);
+            mv.visitFieldInsn(PUTFIELD, "com/gotwo/codegen/Scope", "id","I");
             mv.visitVarInsn(ASTORE, CURRENT_SCOPE);
 
             mv.visitLabel(endIf);
@@ -422,6 +425,15 @@ public class CodeGenerator implements Opcodes{
             }
         }
 
+        mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
+        mv.visitInsn(DUP);
+        mv.visitFieldInsn(GETFIELD, "com/gotwo/codegen/Scope", "logicalParent", "Lcom/gotwo/codegen/Scope;");
+        mv.visitInsn(DUP);
+        mv.visitVarInsn(ASTORE, CURRENT_SCOPE);
+        mv.visitInsn(SWAP);
+        mv.visitMethodInsn(INVOKEVIRTUAL, "com/gotwo/codegen/Scope", "mergeForGoTo", "(Lcom/gotwo/codegen/Scope;)V", false);
+
+
         return localStackHeight;
     }
 
@@ -437,6 +449,11 @@ public class CodeGenerator implements Opcodes{
         int stackHeight;
         Label noMatch = new Label();
 
+        //Check if target label is null
+        mv.visitVarInsn(ALOAD, 0);
+        mv.visitFieldInsn(GETFIELD, className, "targetLabel", "Ljava/lang/String;");
+        mv.visitJumpInsn(IFNULL, noMatch);
+
         //Test for same target name
         mv.visitVarInsn(ALOAD, 0);
         mv.visitFieldInsn(GETFIELD, className, "targetLabel", "Ljava/lang/String;");
@@ -448,25 +465,12 @@ public class CodeGenerator implements Opcodes{
         mv.visitFieldInsn(GETFIELD, className, "targetSpeed", "Lcom/gotwo/codegen/SPEED;");
         mv.visitFieldInsn(GETSTATIC, "com/gotwo/codegen/SPEED", invitationNode.getSpeed().toString(), "Lcom/gotwo/codegen/SPEED;");
         mv.visitJumpInsn(IF_ACMPNE, noMatch);
-
-        printMessage(mv, "redirect external call...");
+        //Remove bottom duplicates
+        //mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
+        //mv.visitMethodInsn(INVOKEVIRTUAL, "com/gotwo/codegen/Scope", "removeBottomDuplicate", "()V", false);
         //Go to
+        //printMessage(mv, "Lets do the initial jump");
         stackHeight = generateGoTo(mv, invitationNode.getJumpInstruction(), currentScope);
-        //Go back
-        mv.visitLabel( invitationNode.getJumpInstruction().getBackLabel().getLabel() );
-        printMessage(mv, "lets go back!!!");
-        mv.visitVarInsn(ALOAD, 0);
-        mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
-        mv.visitMethodInsn(INVOKEVIRTUAL, "com/gotwo/codegen/Scope", "getNextExternalBackFile", "()Ljava/lang/String;", false);
-        mv.visitFieldInsn(PUTFIELD, className, "targetFile", "Ljava/lang/String;");
-
-        mv.visitVarInsn(ALOAD, 0);
-        mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
-        mv.visitMethodInsn(INVOKEVIRTUAL, "com/gotwo/codegen/Scope", "getNextExternalBackLabel", "()Ljava/lang/String;", false);
-        mv.visitFieldInsn(PUTFIELD, className, "targetLabel", "Ljava/lang/String;");
-        saveCurrentScope(mv);
-        mv.visitInsn(RETURN);
-
         //Go here if there was no match
         mv.visitLabel(noMatch);
 
@@ -493,12 +497,12 @@ public class CodeGenerator implements Opcodes{
         mv.visitVarInsn(ALOAD, 0);
         mv.visitMethodInsn(INVOKEVIRTUAL, className, "getClass", "()Ljava/lang/Class;", false);
         mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/Class", "getCanonicalName", "()Ljava/lang/String;", false);
-        mv.visitFieldInsn(PUTFIELD, "com/gotwo/codegen/Scope", "externalBackLabel", "Ljava/lang/String;");
+        mv.visitFieldInsn(PUTFIELD, "com/gotwo/codegen/Scope", "externalBackFile", "Ljava/lang/String;");
 
         mv.visitVarInsn(ALOAD, 0);
         mv.visitFieldInsn(GETFIELD, className, "currentScope", "Lcom/gotwo/codegen/Scope;");
-        mv.visitLdcInsn("/" + goToNode.getBackLabel().getName());
-        mv.visitFieldInsn(PUTFIELD, "com/gotwo/codegen/Scope", "externalBackFile", "Ljava/lang/String;");
+        mv.visitLdcInsn(goToNode.getBackLabel().getName());
+        mv.visitFieldInsn(PUTFIELD, "com/gotwo/codegen/Scope", "externalBackLabel", "Ljava/lang/String;");
 
         mv.visitInsn(RETURN);
 
@@ -555,9 +559,6 @@ public class CodeGenerator implements Opcodes{
                     mv.visitJumpInsn(IFNE, jumpOverLabel);
 
                     tempStackHeight = generateGoTo(mv, currentScope, labelDeclaration, goBackNode.getSpeed(), -1);
-                    mv.visitVarInsn(ALOAD, 0);
-                    mv.visitFieldInsn(GETSTATIC, "com/gotwo/codegen/SPEED", goBackNode.getSpeed().toString(), "Lcom/gotwo/codegen/SPEED;");
-                    mv.visitFieldInsn(PUTFIELD, className, "targetSpeed", "Lcom/gotwo/codegen/SPEED;");
                     if(tempStackHeight > localStackHeight) {
                         localStackHeight = tempStackHeight;
                     }
@@ -566,6 +567,44 @@ public class CodeGenerator implements Opcodes{
                 }
             }
         }
+
+        //No local go back match? that means we go back global
+        //printMessage(mv, "lets go back!!!");
+
+        saveCurrentScope(mv);
+
+        mv.visitVarInsn(ALOAD, 0);
+        mv.visitFieldInsn(GETSTATIC, "com/gotwo/codegen/SPEED", goBackNode.getSpeed().toString(), "Lcom/gotwo/codegen/SPEED;");
+        mv.visitFieldInsn(PUTFIELD, className, "targetSpeed", "Lcom/gotwo/codegen/SPEED;");
+
+        //mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
+        //mv.visitMethodInsn(INVOKEVIRTUAL, "com/gotwo/codegen/Scope", "printScopeStructure", "()V", false);
+
+        mv.visitVarInsn(ALOAD, 0);
+        mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
+        mv.visitMethodInsn(INVOKEVIRTUAL, "com/gotwo/codegen/Scope", "getNextExternalBackFile", "()Ljava/lang/String;", false);
+        mv.visitFieldInsn(PUTFIELD, className, "targetFile", "Ljava/lang/String;");
+
+        mv.visitVarInsn(ALOAD, 0);
+        mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
+        mv.visitMethodInsn(INVOKEVIRTUAL, "com/gotwo/codegen/Scope", "getNextExternalBackLabel", "()Ljava/lang/String;", false);
+        mv.visitFieldInsn(PUTFIELD, className, "targetLabel", "Ljava/lang/String;");
+
+        mv.visitVarInsn(ALOAD, 0);
+        mv.visitFieldInsn(GETFIELD, className, "currentScope", "Lcom/gotwo/codegen/Scope;");
+        mv.visitInsn(ACONST_NULL);
+        mv.visitFieldInsn(PUTFIELD, "com/gotwo/codegen/Scope", "externalBackFile", "Ljava/lang/String;");
+
+        mv.visitVarInsn(ALOAD, 0);
+        mv.visitFieldInsn(GETFIELD, className, "currentScope", "Lcom/gotwo/codegen/Scope;");
+        mv.visitInsn(ACONST_NULL);
+        mv.visitFieldInsn(PUTFIELD, "com/gotwo/codegen/Scope", "externalBackLabel", "Ljava/lang/String;");
+
+        //Remove bottom duplicates
+        mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
+        mv.visitMethodInsn(INVOKEVIRTUAL, "com/gotwo/codegen/Scope", "removeBottomDuplicate", "()V", false);
+
+        mv.visitInsn(RETURN);
 
         return localStackHeight;
     }
@@ -690,6 +729,7 @@ public class CodeGenerator implements Opcodes{
      * @return The maximum used stack height
      */
     private int generateLabel(MethodVisitor mv, LabelNode labelNode) {
+        printMessage(mv, labelNode.getLabelDeclaration().getName() + "label dec");
         mv.visitLabel( labelNode.getLabelDeclaration().getLabel() );
         return 0;
     }

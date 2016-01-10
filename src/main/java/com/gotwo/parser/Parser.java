@@ -7,7 +7,6 @@ import com.gotwo.error.RequireTokenException;
 import com.gotwo.error.UndeclearedIdentifier;
 import com.gotwo.lexer.*;
 import com.gotwo.lexer.Integer;
-import org.objectweb.asm.Label;
 
 import java.util.*;
 
@@ -48,14 +47,12 @@ public class Parser {
         ScopeNode root = parseScope(externalRoot);  //The root scope is the special, most outer scope
                                             //It never has a "real" parent scope(during compile time)
                                             //Its parent scope is a simple helper for external jumps
-
+        //Add external jumps to the externalRoot
+        addExternalJumps(externalRoot);
         if(targetLabels.containsKey("start")) {
             //Generate start goto
             externalRoot.addChildNode(new GoToLabelNode(SPEED.RUN, targetLabels.get("start")));
         }
-
-        //Add external jumps to the externalRoot
-        addExternalJumps(externalRoot);
         externalRoot.addChildNode(root);
 
         return new ParsingResult(externalRoot, labelList, targetScopes, targetLabels, context, scopeNodes, goBackLabels);
@@ -101,7 +98,7 @@ public class Parser {
                     Identifier identifier = (Identifier)currentToken;
                     tokenList.remove(0);
                     //Here we should now find an assignment to the variable
-                    handleAssignement(currentScope, identifier);
+                    handleAssignment(currentScope, identifier);
                     break;
 
                 //Error cases, these are for sure illegal syntax
@@ -220,13 +217,13 @@ public class Parser {
         addInviteNode(secondIdentifier, firstIdentifier, speed, currentScope, keyword);
     }
 
-    private void addInviteNode(String targetName, String externalName, SPEED speed, ScopeNode currentScope, Token keyword) throws DuplicatedIdentifier {
+    private InvitationNode addInviteNode(String targetName, String externalName, SPEED speed, ScopeNode currentScope, Token keyword) throws DuplicatedIdentifier {
         //Here wo got everything we need to get started
         LabelDeclaration targetLabel = declareLabel(targetName, currentScope, false, -1, keyword);
         GoToLabelNode goToLabelNode = new GoToLabelNode(speed, targetLabel);
         InvitationNode invitationNode = new InvitationNode(externalName, goToLabelNode, speed);
         invitations.add(invitationNode);
-        goToLabelNode.setBackLabel(handleLocalGoBackLabel(currentScope, targetLabel, keyword, "invitation", false));
+        return invitationNode;
     }
 
     private void handleGoToNode(SPEED speed, ScopeNode currentScope) throws RequireTokenException, IllegalTokenException, DuplicatedIdentifier {
@@ -275,8 +272,9 @@ public class Parser {
 
 
     private LabelDeclaration handleLocalGoBackLabel(ScopeNode currentScope, LabelDeclaration targetLabel, Token currentToken, String suffix, boolean add) throws DuplicatedIdentifier {
+        int id = context.getGoBackLabelId();
         //Go back semantic, add a jump back label & keep track of possible go backs
-        LabelDeclaration backLabelDeclaration = declareLabel("#" + currentToken.getLine() + "#" + suffix, currentScope, false, currentToken.getLine(), currentToken);
+        LabelDeclaration backLabelDeclaration = declareLabel("#" + id + "#" + suffix, currentScope, false, id, currentToken);
         if(!goBackLabels.containsKey(targetLabel.getName())) {
             goBackLabels.put(targetLabel.getName(), new LinkedList<>());
         }
@@ -288,28 +286,27 @@ public class Parser {
         return backLabelDeclaration;
     }
 
-    private LabelDeclaration handleExternalGoBackLabel(ScopeNode currentScope, String target, Token currentToken) throws DuplicatedIdentifier {
-        LabelDeclaration backLabelDeclaration = declareLabel("$" + currentToken.getLine() + "$", currentScope, false, currentToken.getLine(), currentToken);
-        if(!goBackLabels.containsKey(target)) {
-            goBackLabels.put(target, new LinkedList<>());
-        }
-        goBackLabels.get(target).add(backLabelDeclaration);
-        currentScope.addChildNode(new LabelNode(backLabelDeclaration));
-
-        return backLabelDeclaration;
-    }
-
     private void handleGoToFile(SPEED speed, ScopeNode currentScope, Keyword keyword) throws IllegalTokenException, RequireTokenException, DuplicatedIdentifier {
         switch (keyword.getKey()) {
             case OTHER:
                 Identifier identifier = (Identifier)requireToken(Token.TYPE.IDENTIFIER);
                 tokenList.remove(0);
                 String fullLabelName = requireFullLabelName();
-                LabelDeclaration backLabel = handleExternalGoBackLabel(currentScope, fullLabelName, identifier);
-                currentScope.addChildNode(new GoToFileNode(speed, identifier.getName(),fullLabelName, backLabel));
+
+
+                GoToFileNode goToFileNode = new GoToFileNode(speed, identifier.getName(),fullLabelName);
+                currentScope.addChildNode(goToFileNode);
+
+                int id = context.getGoBackLabelId();
+                LabelDeclaration backLabel = declareLabel("$" + id + "$", currentScope, false, id, keyword);
+                goToFileNode.setBackLabel(backLabel);
+
                 for(SPEED backSpeed : SPEED.values()) {
                     addInviteNode(backLabel.getName(), backLabel.getName(), backSpeed, currentScope, keyword);
                 }
+
+                backLabel.markAsDeclared(currentScope);
+                currentScope.addChildNode(new LabelNode(backLabel));
                 break;
             default:
                 throw new IllegalTokenException(null, keyword);
@@ -320,7 +317,7 @@ public class Parser {
      * Will handle an variable assignment.
      * Here we also take care to not use any undefined variables.
      */
-    private void handleAssignement(ScopeNode currentScope, Identifier identifier) throws UndeclearedIdentifier, RequireTokenException, IllegalTokenException {
+    private void handleAssignment(ScopeNode currentScope, Identifier identifier) throws UndeclearedIdentifier, RequireTokenException, IllegalTokenException {
         IntegerDeclaration integerDeclaration = currentScope.getIntegerDeclaration(identifier.getName());
 
         if(integerDeclaration == null) {

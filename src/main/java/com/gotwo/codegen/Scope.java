@@ -37,44 +37,45 @@ public class Scope {
      * @param value The new value for the variable
      */
     public void setLocalIntegerVariable(String name, int value) {
-        System.out.println("Init integer " + name + " with value " + value);
+        //System.out.println("Init integer " + name + " with value " + value);
         integers.put(name, value);
     }
 
 
     /**
      * Used to set an integer value at runtime.
-     * Note that we do not need error handling,
-     * as the go2lang is typesave and all accessed
-     * variables must be defined at the callinc scope.
      *
      * @param name The name of the target variable
      * @param value The new value for the variable
      */
     public void setIntegerValue(String name, int value) {
-        System.out.println("Update integer " + name + " to value " + value);
+        //System.out.println("Update integer " + name + " to value " + value);
         Scope currentScope = this;
-        while(!currentScope.integers.containsKey(name)) {
+        while(currentScope != null) {
+            if(currentScope.integers.containsKey(name)) {
+                currentScope.integers.put(name, value);
+                return;
+            }
             currentScope = currentScope.logicalParent;
         }
-
-        currentScope.integers.put(name, value);
     }
 
     /**
      * Used to get an integer value at runtime.
-     * Note that we do not need error hanling.
      *
      * @param name The name of the target variable
      * @return the variables integer value
      */
     public int getIntegerValue(String name) {
         Scope currentScope = this;
-        while(!currentScope.integers.containsKey(name)) {
+        while(currentScope != null) {
+            if(currentScope.integers.containsKey(name)) {
+                return currentScope.integers.get(name);
+            }
             currentScope = currentScope.logicalParent;
         }
 
-        return currentScope.integers.get(name);
+        return 0;
     }
 
     /**
@@ -127,7 +128,7 @@ public class Scope {
         Scope currentScope = this;
         while(currentScope != null) {
             if(currentScope.externalBackLabel != null) {
-                return externalBackLabel;
+                return currentScope.externalBackLabel;
             }
             currentScope = currentScope.logicalParent;
         }
@@ -142,11 +143,45 @@ public class Scope {
         Scope currentScope = this;
         while(currentScope != null) {
             if(currentScope.externalBackFile != null) {
-                return externalBackFile;
+                return currentScope.externalBackFile;
             }
             currentScope = currentScope.logicalParent;
         }
 
         return null;
+    }
+
+    public void printScopeStructure() {
+        Scope currentScope = this;
+        while(currentScope != null) {
+            currentScope.printScope();
+            currentScope = currentScope.logicalParent;
+        }
+    }
+
+    public void printScope() {
+        System.out.println("=====SCOPE" + id + "=====");
+        System.out.println("LogicalParent: " + logicalParent);
+        System.out.println("BackFile:  " + externalBackFile);
+        System.out.println("BackLabel: " + externalBackLabel);
+        System.out.println("NextBackFile:  " + getNextExternalBackFile());
+        System.out.println("NextBackLabel: " + getNextExternalBackLabel());
+        for(Map.Entry<String, Integer> entry : integers.entrySet()) {
+            System.out.println("Integer " + entry.getKey() + " = " + entry.getValue());
+        }
+        System.out.println("================");
+    }
+
+    public void removeBottomDuplicate() {
+        Scope currentScope = this;
+        while(currentScope != null) {
+            if(currentScope.id == 0
+                    && currentScope.logicalParent != null
+                    && currentScope.logicalParent.id == 0) {
+                currentScope.logicalParent = currentScope.logicalParent.logicalParent;
+                return;
+            }
+            currentScope = currentScope.logicalParent;
+        }
     }
 }

@@ -42,7 +42,7 @@ public class ParserTests {
             fail("Compiling error in syntactical correct program.");
         }
     }
-    
+
     //Some helpers to check the structure faster
 
     /**
