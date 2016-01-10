@@ -19,6 +19,7 @@ public class LearnASM extends GoTwoBase{
             int y;
         }
 
+        Scope scope = new Scope(null, 0);
     }
 
 }

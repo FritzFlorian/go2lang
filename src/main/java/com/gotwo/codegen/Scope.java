@@ -101,6 +101,10 @@ public class Scope {
      * @param oldScope The old scope to merge variables into this scope.
      */
     public void mergeForGoTo(Scope oldScope) {
+        if(oldScope == null) {
+            return;
+        }
+
         Set<Map.Entry<String, Integer>> oldIntegers = oldScope.integers.entrySet();
 
         for(Map.Entry<String, Integer> oldInteger : oldIntegers) {

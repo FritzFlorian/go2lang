@@ -56,8 +56,6 @@ public abstract class GoTwoBase {
         this.targetFile = currentScope.getNextExternalBackFile();
         this.targetLabel = currentScope.getNextExternalBackLabel();
         this.targetSpeed = SPEED.GO;
-        this.currentScope.removeBottomDuplicate();
-        this.currentScope.printScopeStructure();
         this.currentScope.externalBackFile = null;
         this.currentScope.externalBackLabel = null;
     }

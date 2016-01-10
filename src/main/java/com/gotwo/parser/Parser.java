@@ -220,8 +220,7 @@ public class Parser {
     private InvitationNode addInviteNode(String targetName, String externalName, SPEED speed, ScopeNode currentScope, Token keyword) throws DuplicatedIdentifier {
         //Here wo got everything we need to get started
         LabelDeclaration targetLabel = declareLabel(targetName, currentScope, false, -1, keyword);
-        GoToLabelNode goToLabelNode = new GoToLabelNode(speed, targetLabel);
-        InvitationNode invitationNode = new InvitationNode(externalName, goToLabelNode, speed);
+        InvitationNode invitationNode = new InvitationNode(externalName, targetLabel, speed);
         invitations.add(invitationNode);
         return invitationNode;
     }

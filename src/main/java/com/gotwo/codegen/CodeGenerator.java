@@ -357,30 +357,8 @@ public class CodeGenerator implements Opcodes{
         int tempStackHeight = 0;
 
         //Generate the current scope
-        //At this point the stack should be empty
-        if(scopeNode.getId() != 0) { //The external outer scope is an special case
-            generateInitScope(mv, scopeNode.getId());
-        } else {
-            mv.visitVarInsn(ALOAD, 0);
-            mv.visitFieldInsn(GETFIELD, className, "currentScope", "Lcom/gotwo/codegen/Scope;");
-            Label notNullLabel = new Label();
-            Label endIf = new Label();
-            mv.visitJumpInsn(IFNONNULL, notNullLabel);
-            //null code
-            generateInitScope(mv, 0);
-
-            mv.visitJumpInsn(GOTO, endIf);
-            mv.visitLabel(notNullLabel);
-            //Not null code
-            mv.visitVarInsn(ALOAD, 0);
-            mv.visitFieldInsn(GETFIELD, className, "currentScope", "Lcom/gotwo/codegen/Scope;");
-            mv.visitInsn(DUP);
-            mv.visitInsn(ICONST_0);
-            mv.visitFieldInsn(PUTFIELD, "com/gotwo/codegen/Scope", "id","I");
-            mv.visitVarInsn(ASTORE, CURRENT_SCOPE);
-
-            mv.visitLabel(endIf);
-        }
+        //At this point the stack should be empty\
+        generateInitScope(mv, scopeNode.getId());
         //Stack is empty again, ready to do some work
 
 
@@ -426,27 +404,29 @@ public class CodeGenerator implements Opcodes{
         }
 
         mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
-        mv.visitInsn(DUP);
         mv.visitFieldInsn(GETFIELD, "com/gotwo/codegen/Scope", "logicalParent", "Lcom/gotwo/codegen/Scope;");
-        mv.visitInsn(DUP);
         mv.visitVarInsn(ASTORE, CURRENT_SCOPE);
-        mv.visitInsn(SWAP);
-        mv.visitMethodInsn(INVOKEVIRTUAL, "com/gotwo/codegen/Scope", "mergeForGoTo", "(Lcom/gotwo/codegen/Scope;)V", false);
-
 
         return localStackHeight;
     }
 
     private void generateInitScope(MethodVisitor mv, int id) {
-        mv.visitVarInsn(ALOAD, 0);
-        mv.visitLdcInsn(id);
-        mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
-        mv.visitMethodInsn(INVOKEVIRTUAL, className, "initScopeWithId", "(ILcom/gotwo/codegen/Scope;)Lcom/gotwo/codegen/Scope;", false);
+        if(id != 0) {
+            mv.visitVarInsn(ALOAD, 0);
+            mv.visitLdcInsn(id);
+            mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
+            mv.visitMethodInsn(INVOKEVIRTUAL, className, "initScopeWithId", "(ILcom/gotwo/codegen/Scope;)Lcom/gotwo/codegen/Scope;", false);
+        } else {
+            mv.visitTypeInsn(NEW, "com/gotwo/codegen/Scope");
+            mv.visitInsn(DUP);
+            mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
+            mv.visitInsn(ICONST_0);
+            mv.visitMethodInsn(INVOKESPECIAL, "com/gotwo/codegen/Scope", "<init>", "(Lcom/gotwo/codegen/Scope;I)V", false);
+        }
         mv.visitVarInsn(ASTORE, CURRENT_SCOPE);
     }
 
     private int generateInvitation(MethodVisitor mv, InvitationNode invitationNode, ScopeNode currentScope) {
-        int stackHeight;
         Label noMatch = new Label();
 
         //Check if target label is null
@@ -465,16 +445,13 @@ public class CodeGenerator implements Opcodes{
         mv.visitFieldInsn(GETFIELD, className, "targetSpeed", "Lcom/gotwo/codegen/SPEED;");
         mv.visitFieldInsn(GETSTATIC, "com/gotwo/codegen/SPEED", invitationNode.getSpeed().toString(), "Lcom/gotwo/codegen/SPEED;");
         mv.visitJumpInsn(IF_ACMPNE, noMatch);
-        //Remove bottom duplicates
-        //mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
-        //mv.visitMethodInsn(INVOKEVIRTUAL, "com/gotwo/codegen/Scope", "removeBottomDuplicate", "()V", false);
         //Go to
-        //printMessage(mv, "Lets do the initial jump");
-        stackHeight = generateGoTo(mv, invitationNode.getJumpInstruction(), currentScope);
+        generateInvitationGoTo(mv, invitationNode);
+
         //Go here if there was no match
         mv.visitLabel(noMatch);
 
-        return stackHeight > 4 ? stackHeight : 4;
+        return 4;
     }
 
     /**
@@ -601,8 +578,8 @@ public class CodeGenerator implements Opcodes{
         mv.visitFieldInsn(PUTFIELD, "com/gotwo/codegen/Scope", "externalBackLabel", "Ljava/lang/String;");
 
         //Remove bottom duplicates
-        mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
-        mv.visitMethodInsn(INVOKEVIRTUAL, "com/gotwo/codegen/Scope", "removeBottomDuplicate", "()V", false);
+        //mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
+        //mv.visitMethodInsn(INVOKEVIRTUAL, "com/gotwo/codegen/Scope", "removeBottomDuplicate", "()V", false);
 
         mv.visitInsn(RETURN);
 
@@ -687,13 +664,56 @@ public class CodeGenerator implements Opcodes{
         }
 
         //Save the old scope id
-        mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
-        mv.visitLdcInsn(oldLabelId);
-        mv.visitFieldInsn(PUTFIELD, "com/gotwo/codegen/Scope", "lastLabel", "I");
+        saveLastLabel(mv, oldLabelId);
 
-        mv.visitJumpInsn(GOTO ,targetLabel.getLabel());
+        mv.visitJumpInsn(GOTO, targetLabel.getLabel());
 
         return 4;
+    }
+
+    private void saveLastLabel(MethodVisitor mv, int lastLabelId) {
+        mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
+        mv.visitLdcInsn(lastLabelId);
+        mv.visitFieldInsn(PUTFIELD, "com/gotwo/codegen/Scope", "lastLabel", "I");
+    }
+
+    private void generateInvitationGoTo(MethodVisitor mv, InvitationNode invitationNode) {
+        //Save the outer scope with id 0 onto the stack
+        mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
+
+        //This will automatically update the current scope local variable
+        generateNewScopeStack(mv, 0, invitationNode.getInternalTarget().getScope());
+
+        //Now the scope is changed, and we are ready to do the appropriate variable merging
+        //The new current scope is now stored in CURRENT_SCOPE
+        //The old scope is on top of the stack
+        switch (invitationNode.getSpeed()) {
+            case GO:
+                mv.visitInsn(DUP);
+                mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
+                //mv.visitFieldInsn(GETFIELD, "com/gotwo/codegen/Scope", "logicalParent", "Lcom/gotwo/codegen/Scope;");
+                mv.visitInsn(SWAP);
+                mv.visitMethodInsn(INVOKEVIRTUAL, "com/gotwo/codegen/Scope", "mergeForGoTo","(Lcom/gotwo/codegen/Scope;)V", false);
+                //Now we have the current scope on stack.
+                //It was a go two, so simply forget about all the old scopes
+                mv.visitInsn(ACONST_NULL);
+                mv.visitFieldInsn(PUTFIELD, "com/gotwo/codegen/Scope", "logicalParent", "Lcom/gotwo/codegen/Scope;");
+                break;
+            case RUN:
+            case SPRINT:
+                //Now we have the current scope on stack.
+                //It was a go two, so simply forget about all the old scopes
+                mv.visitInsn(ACONST_NULL);
+                mv.visitFieldInsn(PUTFIELD, "com/gotwo/codegen/Scope", "logicalParent", "Lcom/gotwo/codegen/Scope;");
+                break;
+            case WALK:
+                mv.visitInsn(POP);
+                //TODO: Implement walk to
+                break;
+        }
+
+        saveLastLabel(mv, -1);
+        mv.visitJumpInsn(GOTO, invitationNode.getInternalTarget().getLabel());
     }
 
     /**
@@ -718,6 +738,9 @@ public class CodeGenerator implements Opcodes{
         mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
         mv.visitMethodInsn(INVOKEVIRTUAL, className, "initScopeWithId", "(ILcom/gotwo/codegen/Scope;)Lcom/gotwo/codegen/Scope;", false);
         mv.visitVarInsn(ASTORE, CURRENT_SCOPE);
+
+        //mv.visitVarInsn(ALOAD, CURRENT_SCOPE);
+        //mv.visitMethodInsn(INVOKEVIRTUAL, "com/gotwo/codegen/Scope", "printScopeStructure", "()V", false);
     }
 
     /**
