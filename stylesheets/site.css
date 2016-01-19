@@ -343,18 +343,16 @@ h2 {
   color: #238f23; }
 
 .content-block {
-  width: 50%;
   float: left;
   text-align: left;
-  margin-bottom: 20px; }
-  @media screen and (max-width: 800px) {
+  margin-bottom: 20px;
+  width: 50%; }
+  @media (max-width: 679px) {
     .content-block {
       width: 100%; } }
 
 .inner-content {
-  margin: 10px 10px 10px 10px;
-  margin-left: 30px;
-  margin-right: 30px; }
+  margin: 10px 30px 10px 30px; }
 
 #menu {
   text-align: right;
@@ -408,10 +406,10 @@ h2 {
   color: black;
   text-decoration: none; }
 
-@media screen and (max-width: 680px) {
+@media (max-width: 679px) {
   #long {
     display: none; } }
 
-@media screen and (min-width: 681px) {
+@media (min-width: 680px) {
   #short {
     display: none; } }

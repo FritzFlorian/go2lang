@@ -1,8 +1,18 @@
 @charset "utf-8";
 @import "normalize";
 
-$break-small: 680px;
-$min-tile-width: 400px;
+$desktop-width: 680px;
+@mixin desktop {
+  @media (min-width: $desktop-width) {
+    @content;
+  }
+}
+@mixin phone {
+  @media(max-width: ($desktop-width - 1)) {
+    @content
+  }
+}
+
 $back-color: #c2f0c2;
 $dark-color: #238f23;
 $border-color: #0f3d0f;
@@ -52,21 +62,19 @@ h2 {
 
 //Main content area
 .content-block {
-  width: 50%;
   float: left;
   text-align: left;
 
   margin-bottom: 20px;
 
-  @media screen and (max-width: $min-tile-width * 2) {
+  width: 50%;
+  @media(max-width: ($desktop-width - 1)) {
     width: 100%;
-  }  
+  }
 }
 
 .inner-content {
-  margin: 10px 10px 10px 10px;
-  margin-left: 30px;
-  margin-right: 30px;
+  margin: 10px 30px 10px 30px;
 }
 
 //The menu buttons
@@ -144,13 +152,13 @@ h2 {
 }
 
 #long {
-   @media screen and (max-width: $break-small) {
+  @include phone {
     display: none;
   }
 }
 
 #short {
-  @media screen and (min-width: $break-small + 1) {
+  @include desktop {
     display: none;
   }
 }
